@@ -1,23 +1,20 @@
+from __future__ import annotations
+from typing import TYPE_CHECKING
+
 import numpy as np
+
+if TYPE_CHECKING:
+    from mpi4py.MPI import Comm
 
 
 class NoiseTable:
-    def __init__(self, seed=123, table_size=250000000):
-        import ctypes
-        import multiprocessing
+    def __init__(self, comm: Comm, seed=123, table_size=250000000):
+        if comm.rank == 0:
+            self.noise = np.random.RandomState(seed).randn(table_size)  # 64-bit to 32-bit conversion here
+        else:
+            self.noise: np.ndarray = np.empty(table_size)
 
-        # seed = 123
-        # count = 250000000  # 1 gigabyte of 32-bit numbers. Will actually sample 2 gigabytes below.
-        # logger.info('Sampling {} random numbers with seed {}'.format(count, seed))
-
-        self._shared_mem = multiprocessing.Array(ctypes.c_float, table_size)
-        self.noise = np.ctypeslib.as_array(self._shared_mem.get_obj())
-
-        assert self.noise.dtype == np.float32
-
-        self.noise[:] = np.random.RandomState(seed).randn(table_size)  # 64-bit to 32-bit conversion here
-        print(f'Sampled {self.noise.size * 4} bytes')
-        # logger.info('Sampled {} bytes'.format(self.noise.size * 4))
+        comm.Bcast(self.noise)
 
     def get(self, i, size) -> np.ndarray:
         return self.noise[i:i + size]
