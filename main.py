@@ -8,6 +8,7 @@ from genome import Genome
 from noisetable import NoiseTable
 from runner import run_genome
 
+
 if __name__ == '__main__':
     comm: MPI.Comm = MPI.COMM_WORLD
     nproc = comm.Get_size()
@@ -16,7 +17,7 @@ if __name__ == '__main__':
     # TODO config
     seed = 10
     table_size = 1000000
-    layer_sizes = [(4, 64), (64, 64), (64, 64), (64, 2)]
+    layer_sizes = [(15, 128), (128, 128), (128, 128), (128, 3)]
     std = 2
     lr = 0.1
     gens = 1000000
@@ -25,13 +26,14 @@ if __name__ == '__main__':
     geno = Genome(comm, layer_sizes, std)
 
     for i in range(gens):
-        fit, noise_idx = run_genome(geno, noise)
+        fit, noise_idx = run_genome(geno, noise, 'HopperBulletEnv-v0')
+
         results = np.array([[fit, noise_idx]] * nproc)
         comm.Alltoall(results, results)
 
         if rank == 0:
             fits = results[:, 0]
-            print(f'\n\ngen:{i}\navg: {np.mean(fits)}\nmax:{np.max(fits)}\nfits:\n{fits}')
+            print(f'\n\ngen:{i}\navg:{np.mean(fits)}\nmax:{np.max(fits)}\nfits:{fits}')
 
         # results = percentage of rank out of total rank
         # todo: should try percentage fitness of total fitness

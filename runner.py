@@ -1,13 +1,13 @@
 import torch
+import gym
+import pybullet_envs
 
 from genome import Genome
 from noisetable import NoiseTable
 
-import gym
 
-
-def run_genome(geno: Genome, noise_table: NoiseTable, render=False):
-    env = gym.make('CartPole-v0')
+def run_genome(geno: Genome, noise_table: NoiseTable, env_name: str, render=False):
+    env = gym.make(env_name, render=render)
     model, noise_idx = geno.pheno(noise_table)
 
     fitness = run_model(model, env, render)
@@ -27,7 +27,7 @@ def run_model(model: torch.nn.Module, env: gym.Env, render):
         for _ in range(max_steps):
             obs = torch.from_numpy(obs).float()
 
-            action = model(obs).argmax(0).item()
+            action = model(obs)
             obs, rew, done, _ = env.step(action)
             fitness += rew
 
