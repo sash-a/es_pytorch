@@ -23,6 +23,9 @@ def uniform_linear_bias_init(size: int):
     return np.random.uniform(-r, r, size)
 
 
+# Should this rather take in an nn.Module and set the params through the state dict?
+#  Would be able to support more architectures but might be a bit slower
+# TODO: GeneralGenome?
 class Genome:
     def __init__(self, comm: Comm, layer_sizes: List[Tuple[int, int]], std: float):
         """
@@ -60,6 +63,8 @@ class Genome:
     @staticmethod
     def make_pheno(genome, noise: np.ndarray) -> torch.nn.Module:
         """Fills the weights of pytorch network of shape self.layer_sizes with self.params"""
+        assert len(noise) == len(genome.params)
+
         layers: List[torch.nn.Module] = []
         curr_noise_pos = 0
         for in_size, out_size in genome.layer_sizes:
@@ -79,10 +84,3 @@ class Genome:
             curr_noise_pos = weight_noise_end_pos + out_size
 
         return torch.nn.Sequential(*layers)
-
-    def approx_grad(self, lr: float, n_genomes: int, results: np.ndarray, noise_table: NoiseTable):
-        """Approximates the gradient given the fitnesses and noise table indices of all runs"""
-        const = lr / (n_genomes * self.std)
-        for rank, idx in results:
-            noise = noise_table.get(int(idx), len(self.params))
-            self.params += const * rank * noise

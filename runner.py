@@ -6,7 +6,7 @@ from genome import Genome
 from noisetable import NoiseTable
 
 
-def run_genome(geno: Genome, noise_table: NoiseTable, env_name: str, render=False):
+def run_genome(geno: Genome, noise_table: NoiseTable, env_name: str, render: bool = False):
     env = gym.make(env_name, render=render)
     model, noise_idx = geno.pheno(noise_table)
 
@@ -17,8 +17,8 @@ def run_genome(geno: Genome, noise_table: NoiseTable, env_name: str, render=Fals
     return fitness, noise_idx
 
 
-def run_model(model: torch.nn.Module, env: gym.Env, render):
-    max_steps = 1000
+def run_model(model: torch.nn.Module, env: gym.Env, render: bool):
+    max_steps = 2000
     fitness = 0
 
     obs = env.reset()

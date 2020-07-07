@@ -2,13 +2,11 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import numpy as np
-
-if TYPE_CHECKING:
-    from mpi4py.MPI import Comm
+from mpi4py import MPI
 
 
 class NoiseTable:
-    def __init__(self, comm: Comm, seed=123, table_size=250000000):
+    def __init__(self, comm: MPI.Comm, seed=123, table_size=250000000):
         if comm.rank == 0:
             self.noise = np.random.RandomState(seed).randn(table_size)  # 64-bit to 32-bit conversion here
         else:
