@@ -1,28 +1,9 @@
 import pickle
 
-import numpy as np
 import torch
 import gym
-import pybullet_envs
 
-from genome import Genome
-from noisetable import NoiseTable
-
-
-def run_genome(geno: Genome,
-               noise_table: NoiseTable,
-               env_name: str,
-               max_steps: int,
-               episodes: int = 1,
-               render: bool = False):
-    env = gym.make(env_name, render=render)
-    model, noise_idx = geno.pheno(noise_table)
-
-    fitness = run_model(model, env, max_steps, episodes, render)
-
-    env.close()
-
-    return fitness, noise_idx
+from policy import Policy
 
 
 def run_model(model: torch.nn.Module, env: gym.Env, max_steps: int, episodes: int = 1, render: bool = False):
@@ -49,8 +30,8 @@ def run_model(model: torch.nn.Module, env: gym.Env, max_steps: int, episodes: in
 
 
 def load_model(file: str) -> torch.nn.Module:
-    genome: Genome = pickle.load(open(file, 'rb'))
-    return Genome.make_pheno(genome, np.zeros(10000000))
+    policy: Policy = pickle.load(open(file, 'rb'))
+    return policy.set_module_params(policy._module, policy.flat_params)
 
 
 if __name__ == '__main__':

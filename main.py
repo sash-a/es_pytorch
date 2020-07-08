@@ -44,8 +44,6 @@ if __name__ == '__main__':
         # noinspection PyProtectedMember
         wandb.init(project='es', entity='sash-a', name=cfg.env_name, config=dict(cfg._asdict()))
 
-    layer_sizes = [(15, 256), (256, 256), (256, 256), (256, 3)]
-
     noise = NoiseTable(comm, seed=cfg.seed, table_size=cfg.table_size)
 
     policy = Policy(FullyConnected(15, 3, 256, 2, torch.nn.Tanh), cfg.noise_stdev)
