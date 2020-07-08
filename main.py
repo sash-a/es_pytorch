@@ -7,7 +7,7 @@ from mpi4py import MPI
 from genome import Genome
 from noisetable import NoiseTable
 from optimizers import Adam
-from runner import run_genome
+from gym_runner import run_genome
 
 
 def percent_rank(fits: np.ndarray):
@@ -31,15 +31,15 @@ if __name__ == '__main__':
     seed = 10
     table_size = 10000000
 
-    layer_sizes = [(15, 128), (128, 128), (128, 128), (128, 3)]
+    layer_sizes = [(15, 256), (256, 256), (256, 256), (256, 3)]
 
     std = 2
 
     lr = 0.01
     l2coeff = 0.005
 
-    gens = 10000000
-    episodes = 10
+    gens = 1
+    n_policies = 5  # how many times each process samples the noise table and evaluates a policy
 
     noise = NoiseTable(comm, seed=seed, table_size=table_size)
     geno = Genome(comm, layer_sizes, std)
@@ -47,23 +47,21 @@ if __name__ == '__main__':
     optim = Adam(geno.params, 0.01)
 
     for i in range(gens):
-        # TODO episodes
-        fit, noise_idx = run_genome(geno, noise, 'HopperBulletEnv-v0')
+        results = []
+        for _ in range(n_policies):
+            results.append(run_genome(geno, noise, 'HopperBulletEnv-v0'))
 
-        results = np.array([[fit, noise_idx]] * nproc)
+        results = np.array(results * nproc)
         comm.Alltoall(results, results)
 
         if rank == 0:
             fits = results[:, 0]
             print(f'\n\ngen:{i}\navg:{np.mean(fits)}\nmax:{np.max(fits)}\nfits:{fits}')
 
-        # results = percentage of rank out of total rank
-        # todo: should try percentage fitness of total fitness
-        #  make a few methods for this
         fits = percent_rank(results[:, 0])
         noise_inds = results[:, 1]
 
-        approx_grad = np.dot(fits, np.array([noise.get(idx, n_params) for idx in noise_inds])) / n_params
+        approx_grad = np.dot(fits, np.array([noise.get(int(idx), n_params) for idx in noise_inds])) / n_params
         _, geno.params = optim.update(geno.params * l2coeff - approx_grad)
 
         if rank == 0 and i % 1000 == 0:

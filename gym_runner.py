@@ -1,3 +1,6 @@
+import pickle
+
+import numpy as np
 import torch
 import gym
 import pybullet_envs
@@ -18,6 +21,7 @@ def run_genome(geno: Genome, noise_table: NoiseTable, env_name: str, render: boo
 
 
 def run_model(model: torch.nn.Module, env: gym.Env, render: bool):
+    # TODO should this be run multiple times + take sum for more robust results?
     max_steps = 2000
     fitness = 0
 
@@ -38,3 +42,14 @@ def run_model(model: torch.nn.Module, env: gym.Env, render: bool):
                 break
 
     return fitness
+
+
+def load_model(file: str) -> torch.nn.Module:
+    genome: Genome = pickle.load(open(file, 'rb'))
+    return Genome.make_pheno(genome, np.zeros(10000000))
+
+
+if __name__ == '__main__':
+    env = gym.make('HopperBulletEnv-v0')
+    run_model(load_model('saved/genome-5000'), env, True)
+    env.close()
