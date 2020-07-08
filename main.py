@@ -4,6 +4,7 @@ import pickle
 import json
 from collections import namedtuple
 
+import wandb
 import numpy as np
 from mpi4py import MPI
 
@@ -32,23 +33,29 @@ if __name__ == '__main__':
 
     # noinspection PyArgumentList
     cfg = json.load(open('configs/testing.json'), object_hook=lambda d: namedtuple('Cfg', d.keys())(*d.values()))
+
+    if rank == 0:
+        # noinspection PyProtectedMember
+        wandb.init(project='es', entity='sash-a', name=cfg.env_name, config=dict(cfg._asdict()))
+
     layer_sizes = [(15, 256), (256, 256), (256, 256), (256, 3)]
 
     noise = NoiseTable(comm, seed=cfg.seed, table_size=cfg.table_size)
-    geno = Genome(comm, layer_sizes, cfg.std)
+    geno = Genome(comm, layer_sizes, cfg.noise_stdev)
     n_params = len(geno.params)
     optim = Adam(geno.params, 0.01)
 
     for i in range(cfg.gens):
         results = []
-        for _ in range(cfg.n_policies):
-            results.append(gym_runner.run_genome(geno, noise, 'HopperBulletEnv-v0'))
+        for _ in range(cfg.eps_per_gen):
+            results.append(gym_runner.run_genome(geno, noise, cfg.env_name, cfg.max_env_steps, cfg.eps_per_policy))
 
         results = np.array(results * nproc)
         comm.Alltoall(results, results)
 
         if rank == 0:
             fits = results[:, 0]
+            wandb.log({'average': np.mean(fits), 'max': np.max(fits)})
             print(f'\n\ngen:{i}\navg:{np.mean(fits)}\nmax:{np.max(fits)}\nfits:{fits}')
 
         fits = percent_rank(results[:, 0])

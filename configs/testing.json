@@ -1,14 +1,15 @@
 {
-  "name": "test",
+  "env_name": "HopperBulletEnv-v0",
 
   "seed": 10,
   "table_size": 10000000,
-
-  "std": 2,
+  "noise_stdev": 0.02,
 
   "lr": 0.01,
   "l2coeff": 0.005,
 
-  "gens": 100000,
-  "n_policies": 100000
+  "gens": 1000000,
+  "eps_per_gen": 200,
+  "eps_per_policy": 1,
+  "max_env_steps": 2000
 }
