@@ -1,0 +1,14 @@
+{
+  "name": "test",
+
+  "seed": 10,
+  "table_size": 10000000,
+
+  "std": 2,
+
+  "lr": 0.01,
+  "l2coeff": 0.005,
+
+  "gens": 100000,
+  "n_policies": 100000
+}

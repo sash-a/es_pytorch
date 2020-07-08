@@ -1,13 +1,16 @@
 from __future__ import annotations
 
 import pickle
+import json
+from collections import namedtuple
+
 import numpy as np
 from mpi4py import MPI
 
 from genome import Genome
 from noisetable import NoiseTable
 from optimizers import Adam
-from gym_runner import run_genome
+import gym_runner
 
 
 def percent_rank(fits: np.ndarray):
@@ -27,29 +30,19 @@ if __name__ == '__main__':
     nproc = comm.Get_size()
     rank = comm.Get_rank()
 
-    # TODO config
-    seed = 10
-    table_size = 10000000
-
+    # noinspection PyArgumentList
+    cfg = json.load(open('configs/testing.json'), object_hook=lambda d: namedtuple('Cfg', d.keys())(*d.values()))
     layer_sizes = [(15, 256), (256, 256), (256, 256), (256, 3)]
 
-    std = 2
-
-    lr = 0.01
-    l2coeff = 0.005
-
-    gens = 1
-    n_policies = 5  # how many times each process samples the noise table and evaluates a policy
-
-    noise = NoiseTable(comm, seed=seed, table_size=table_size)
-    geno = Genome(comm, layer_sizes, std)
+    noise = NoiseTable(comm, seed=cfg.seed, table_size=cfg.table_size)
+    geno = Genome(comm, layer_sizes, cfg.std)
     n_params = len(geno.params)
     optim = Adam(geno.params, 0.01)
 
-    for i in range(gens):
+    for i in range(cfg.gens):
         results = []
-        for _ in range(n_policies):
-            results.append(run_genome(geno, noise, 'HopperBulletEnv-v0'))
+        for _ in range(cfg.n_policies):
+            results.append(gym_runner.run_genome(geno, noise, 'HopperBulletEnv-v0'))
 
         results = np.array(results * nproc)
         comm.Alltoall(results, results)
@@ -62,7 +55,7 @@ if __name__ == '__main__':
         noise_inds = results[:, 1]
 
         approx_grad = np.dot(fits, np.array([noise.get(int(idx), n_params) for idx in noise_inds])) / n_params
-        _, geno.params = optim.update(geno.params * l2coeff - approx_grad)
+        _, geno.params = optim.update(geno.params * cfg.l2coeff - approx_grad)
 
         if rank == 0 and i % 1000 == 0:
             pickle.dump(geno, open(f'saved/genome-{i}', 'wb'))
