@@ -9,7 +9,7 @@ import gym
 import pybullet_envs
 
 import torch
-import wandb
+# import wandb
 import numpy as np
 from mpi4py import MPI
 
@@ -36,13 +36,11 @@ if __name__ == '__main__':
     comm: MPI.Comm = MPI.COMM_WORLD
     nproc = comm.Get_size()
     rank = comm.Get_rank()
-
     # noinspection PyArgumentList
     cfg = json.load(open('configs/testing.json'), object_hook=lambda d: namedtuple('Cfg', d.keys())(*d.values()))
-
-    if rank == 0:
-        # noinspection PyProtectedMember
-        wandb.init(project='es', entity='sash-a', name=cfg.env_name, config=dict(cfg._asdict()))
+    # if rank == 0:
+    #     # noinspection PyProtectedMember
+    #     wandb.init(project='es', entity='sash-a', name=cfg.env_name, config=dict(cfg._asdict()))
 
     noise = NoiseTable(comm, seed=cfg.seed, table_size=cfg.table_size)
 
@@ -65,7 +63,7 @@ if __name__ == '__main__':
             avg = np.mean(fits)
             mx = np.max(fits)
 
-            wandb.log({'average': avg, 'max': mx})
+            # wandb.log({'average': avg, 'max': mx})
             print(f'\n\ngen:{gen}\navg:{avg}\nmax:{mx}')
 
         fits = percent_rank(results[:, 0])
