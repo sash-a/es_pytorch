@@ -50,7 +50,7 @@ if __name__ == '__main__':
 
     for gen in range(cfg.gens):
         results = []
-        for _ in range(cfg.eps_per_gen):
+        for _ in range(int(cfg.eps_per_gen / nproc):
             net, idx = policy.pheno(noise)
             fitness = gym_runner.run_model(net, env, cfg.max_env_steps)
             results += [(fitness, idx)]
