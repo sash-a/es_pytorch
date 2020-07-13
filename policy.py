@@ -15,6 +15,9 @@ class Policy(torch.nn.Module):
         self.flat_params: np.ndarray = Policy.get_flat(module)
         self.n_params = len(self.flat_params)
 
+    def __len__(self):
+        return self.n_params
+
     @staticmethod
     def get_flat(module: torch.nn.Module) -> np.ndarray:
         return torch.cat([t.flatten() for t in module.state_dict().values()]).numpy()
@@ -34,7 +37,7 @@ class Policy(torch.nn.Module):
 
     def pheno(self, nt: NoiseTable, seed=None) -> Tuple[torch.nn.Module, int]:
         idx = np.random.RandomState(seed).randint(0, len(nt) - self.n_params)
-        noise = nt.get(idx, self.n_params)
+        noise = nt[idx]
 
         params = self.flat_params + self.stdev * noise
         Policy.set_module_params(self._module, params)

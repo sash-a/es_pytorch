@@ -2,7 +2,7 @@
   "env_name": "HopperBulletEnv-v0",
 
   "seed": 10,
-  "table_size": 10000000,
+  "table_size": 250000000,
   "noise_stdev": 0.02,
 
   "lr": 0.01,
@@ -11,5 +11,7 @@
   "gens": 1000000,
   "eps_per_gen": 5000,
   "eps_per_policy": 1,
-  "max_env_steps": 2000
+  "max_env_steps": 2000,
+
+  "save_interval": 10000
 }
