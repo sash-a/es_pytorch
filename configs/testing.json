@@ -9,7 +9,7 @@
   "l2coeff": 0.005,
 
   "gens": 1000000,
-  "eps_per_gen": 200,
+  "eps_per_gen": 5000,
   "eps_per_policy": 1,
   "max_env_steps": 2000
 }
