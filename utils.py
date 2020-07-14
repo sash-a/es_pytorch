@@ -27,7 +27,7 @@ def approx_grad(fits: np.ndarray, noise_inds: np.ndarray, nt: NoiseTable, batch_
     for fit_batch, noise_batch in zip(batched_fits, batch_noise(noise_inds, nt, batch_size)):
         total += np.dot(fit_batch, noise_batch)
 
-    return total / nt.n_params
+    return total / nt.n_params  # should this be: total / (n_params * noise_stdev)? stdev is used in the paper but not implementation
 
 
 def percent_rank(fits: np.ndarray):
