@@ -3,7 +3,10 @@ import numpy as np
 from noisetable import NoiseTable
 
 
-def batch_noise(inds: np.ndarray, nt: NoiseTable, batch_size: int):
+def batch_noise(inds: np.ndarray, nt: NoiseTable, batch_size: int) -> np.ndarray:
+    """
+    Need to batch noise otherwise will have to `dot` array with shape (cfg.eps_per_gen, len(params)) or +-(5000, 136451)
+    """
     assert inds.ndim == 1
 
     batch = []
@@ -13,7 +16,7 @@ def batch_noise(inds: np.ndarray, nt: NoiseTable, batch_size: int):
             yield np.array(batch)
             batch = []
 
-    yield batch
+    yield np.array(batch)
 
 
 def approx_grad(fits: np.ndarray, noise_inds: np.ndarray, nt: NoiseTable, batch_size: int):
