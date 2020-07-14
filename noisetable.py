@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Optional
+
 import numpy as np
 from mpi4py import MPI
 
@@ -20,12 +22,9 @@ def create_shared_arr(comm: MPI.Comm, size: int) -> np.ndarray:
 
 
 class NoiseTable:
-    def __init__(self, comm: MPI.Comm, table_size: int, n_params: int, seed=None):
+    def __init__(self, n_params: int, noise: np.ndarray):
         self.n_params = n_params
-
-        local_comm: MPI.Comm = comm.Split_type(MPI.COMM_TYPE_SHARED)
-        self.noise: np.ndarray = create_shared_arr(local_comm, table_size)
-        self._share(comm, local_comm, table_size, seed)
+        self.noise = noise
 
     def sample_index(self, stream, size) -> np.ndarray:
         return stream.randint(0, len(self.noise) - size + 1)
@@ -39,25 +38,36 @@ class NoiseTable:
     def __len__(self):
         return len(self.noise)
 
-    def _share(self, global_comm: MPI.Comm, local_comm: MPI.Comm, size: int, seed):
-        """Shares the noise table such that each node has 1 copy"""
+    @staticmethod
+    def make_noise(size: int, seed=None) -> np.ndarray:
+        return np.random.RandomState(seed).randn(size)
+
+    @staticmethod
+    def create_shared_noisetable(global_comm: MPI.Comm,
+                                 size: int,
+                                 n_params: int,
+                                 seed=None) -> NoiseTable:
+
+        local_comm: MPI.Comm = global_comm.Split_type(MPI.COMM_TYPE_SHARED)
         n_nodes = global_comm.allreduce(1 if local_comm.rank == 0 else 0, MPI.SUM)
+        shared_arr = create_shared_arr(local_comm, size)
+        nt = NoiseTable(n_params, shared_arr)
 
         if global_comm.rank == 0:
-            # create arr values
-            noise = np.random.RandomState(seed).randn(size)
+            noise = NoiseTable.make_noise(size, seed)  # create arr values
 
             for i in range(n_nodes - 1):
                 global_rank_to_send = global_comm.recv(source=MPI.ANY_SOURCE)  # recv global rank from each nodes 0 proc
                 print(f'Sending noise to rank: {global_rank_to_send}')
                 global_comm.Send([noise + i + 1, MPI.DOUBLE], global_rank_to_send)  # send arr to that rank
 
-            self.noise[:size] = noise
+            shared_arr[:size] = noise
 
         elif local_comm.rank == 0:
-            buf = np.empty(size, dtype='d')
+            noise = np.empty(size, dtype='d')
             global_comm.send(global_comm.rank, 0)  # send local rank
-            global_comm.Recv([buf, MPI.DOUBLE], 0)  # receive arr values
-            self.noise[:size] = buf  # set array values
+            global_comm.Recv([noise, MPI.DOUBLE], 0)  # receive arr values
+            shared_arr[:size] = noise  # set array values
 
         global_comm.Barrier()  # wait until all nodes have set the array values
+        return nt

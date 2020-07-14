@@ -5,8 +5,10 @@
   "table_size": 250000000,
   "noise_stdev": 0.02,
 
+  "batch_size": 500,
   "lr": 0.01,
   "l2coeff": 0.005,
+
 
   "gens": 1000000,
   "eps_per_gen": 5000,
