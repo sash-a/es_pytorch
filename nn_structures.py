@@ -9,7 +9,7 @@ class FullyConnected(nn.Module):
         layers = [nn.Linear(in_size, hidden_size), activation()]
         for _ in range(n_hidden):
             layers += [nn.Linear(hidden_size, hidden_size), activation()]
-        layers += [nn.Linear(hidden_size, out_size)]
+        layers += [nn.Linear(hidden_size, out_size), activation()]
 
         self.model = nn.Sequential(*layers)
 

@@ -2,4 +2,4 @@
 **/__pycache__/
 saved/
 wandb/
-configs/homeconf.json
+**/homeconf.json

@@ -2,6 +2,9 @@
 
 import numpy as np
 
+from policy import Policy
+from utils import scale_noise
+
 
 class Optimizer(object):
     def __init__(self, theta):
@@ -20,6 +23,16 @@ class Optimizer(object):
 
     def _compute_step(self, globalg):
         raise NotImplementedError
+
+
+class ES:
+    def __init__(self, policy: Policy, lr: float, eps_per_gen: int):
+        self.policy: Policy = policy
+        self.lr: float = lr
+        self.eps_per_gen: int = eps_per_gen
+
+    def step(self, weighted_noise: np.ndarray):
+        self.policy.flat_params += (self.lr / (self.policy.stdev * self.eps_per_gen)) * weighted_noise
 
 
 class SGD(Optimizer):

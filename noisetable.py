@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Tuple
+
 import numpy as np
 from mpi4py import MPI
 
@@ -24,17 +26,24 @@ class NoiseTable:
         self.n_params = n_params
         self.noise = noise
 
-    def sample_index(self, stream, size) -> np.ndarray:
-        return stream.randint(0, len(self.noise) - size + 1)
-
     def get(self, i, size) -> np.ndarray:
         return self.noise[i:i + size]
+
+    def sample(self, size=None, seed=None) -> Tuple[int, np.ndarray]:
+        if size is None:
+            size = self.n_params
+
+        idx = np.random.RandomState(seed).randint(0, len(self) - size)
+        return idx, self.get(idx, size)
 
     def __getitem__(self, item) -> np.ndarray:
         return self.get(item, self.n_params)
 
     def __len__(self):
         return len(self.noise)
+
+    def __call__(self, *args, **kwargs) -> Tuple[int, np.ndarray]:
+        return self.sample()
 
     @staticmethod
     def make_noise(size: int, seed=None) -> np.ndarray:

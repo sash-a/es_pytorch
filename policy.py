@@ -21,26 +21,24 @@ class Policy(torch.nn.Module):
     def get_flat(module: torch.nn.Module) -> np.ndarray:
         return torch.cat([t.flatten() for t in module.state_dict().values()]).numpy()
 
-    @staticmethod
-    def set_nn_params(module: torch.nn.Module, params: np.ndarray) -> torch.nn.Module:
+    def set_nn_params(self, params: np.ndarray) -> torch.nn.Module:
         d = {}  # new state dict
         curr_params_idx = 0
-        for name, weights in module.state_dict().items():
+        for name, weights in self._module.state_dict().items():
             n_params = torch.prod(torch.tensor(weights.shape))
             d[name] = torch.from_numpy(np.reshape(params[curr_params_idx:curr_params_idx + n_params], weights.size()))
             curr_params_idx += n_params
 
-        module.load_state_dict(d)
-        return module
+        self._module.load_state_dict(d)
+        return self._module
 
-    def pheno(self, nt: NoiseTable, seed=None) -> Tuple[torch.nn.Module, int]:
-        idx = np.random.RandomState(seed).randint(0, len(nt) - len(self))
-        noise = nt[idx]
+    def pheno(self, noise: np.ndarray, sign: int) -> torch.nn.Module:
+        assert sign == 1 or sign == -1
 
-        params = self.flat_params + self.stdev * noise
-        Policy.set_nn_params(self._module, params)
+        params = self.flat_params + (sign * self.stdev) * noise
+        self.set_nn_params(params)
 
-        return self._module, idx
+        return self._module
 
     def forward(self, inp):
         self._module.forward(inp)

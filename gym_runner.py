@@ -31,7 +31,7 @@ def run_model(model: torch.nn.Module, env: gym.Env, max_steps: int, episodes: in
 
 def load_model(file: str) -> torch.nn.Module:
     policy: Policy = pickle.load(open(file, 'rb'))
-    return policy.set_nn_params(policy._module, policy.flat_params)
+    return policy.set_nn_params(policy.flat_params)
 
 
 if __name__ == '__main__':
