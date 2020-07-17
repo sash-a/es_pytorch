@@ -3,7 +3,7 @@ import pickle
 import torch
 import gym
 
-from policy import Policy
+from es.policy import Policy
 
 
 def run_model(model: torch.nn.Module, env: gym.Env, max_steps: int, episodes: int = 1, render: bool = False):

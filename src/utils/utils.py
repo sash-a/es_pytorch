@@ -1,8 +1,11 @@
+import argparse
+import json
+from collections import namedtuple
 from typing import List
 
 import numpy as np
 
-from noisetable import NoiseTable
+from es.noisetable import NoiseTable
 
 
 def batch_noise(inds: np.ndarray, signs: List[int], nt: NoiseTable, batch_size: int):
@@ -46,3 +49,15 @@ def percent_fitness(fits: np.ndarray):
     """Transforms fitnesses into: fitness/total_fitness"""
     assert fits.ndim == 1
     return fits / sum(fits)
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(description='es-pytorch')
+    parser.add_argument('config', type=str, help='Config file that will be used')
+    return parser.parse_args().config
+
+
+def load_config(cfg_file: str):
+    """:returns: named tuple"""
+    # noinspection PyArgumentList
+    return json.load(open(cfg_file), object_hook=lambda d: namedtuple('Cfg', d.keys())(*d.values()))

@@ -1,9 +1,5 @@
-from typing import Tuple
-
 import torch
 import numpy as np
-
-from noisetable import NoiseTable
 
 
 class Policy(torch.nn.Module):

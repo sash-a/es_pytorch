@@ -2,8 +2,7 @@
 
 import numpy as np
 
-from policy import Policy
-from utils import scale_noise
+from es.policy import Policy
 
 
 class Optimizer(object):

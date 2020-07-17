@@ -13,8 +13,7 @@ def create_shared_arr(comm: MPI.Comm, size: int) -> np.ndarray:
     else:
         nbytes: int = 0
 
-    # Creating the shared block
-    win = MPI.Win.Allocate_shared(nbytes, itemsize, comm=comm)
+    win = MPI.Win.Allocate_shared(nbytes, itemsize, comm=comm)  # Creating the shared block
 
     # create a numpy array whose data points to the shared mem
     buf, itemsize = win.Shared_query(0)
