@@ -1,12 +1,12 @@
-import torch
 import numpy as np
+import torch
 
 
 class Policy(torch.nn.Module):
-    def __init__(self, module: torch.nn.Module, stdev: int):
+    def __init__(self, module: torch.nn.Module, std: float):
         super().__init__()
         self._module: torch.nn.Module = module
-        self.stdev = stdev
+        self.std = std
 
         self.flat_params: np.ndarray = Policy.get_flat(module)
 
@@ -28,10 +28,8 @@ class Policy(torch.nn.Module):
         self._module.load_state_dict(d)
         return self._module
 
-    def pheno(self, noise: np.ndarray, sign: int) -> torch.nn.Module:
-        assert sign == 1 or sign == -1
-
-        params = self.flat_params + (sign * self.stdev) * noise
+    def pheno(self, noise: np.ndarray) -> torch.nn.Module:
+        params = self.flat_params + self.std * noise
         self.set_nn_params(params)
 
         return self._module

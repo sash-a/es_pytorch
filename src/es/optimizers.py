@@ -31,7 +31,7 @@ class ES:
         self.eps_per_gen: int = eps_per_gen
 
     def step(self, weighted_noise: np.ndarray):
-        self.policy.flat_params += (self.lr / (self.policy.stdev * self.eps_per_gen)) * weighted_noise
+        self.policy.flat_params += (self.lr / (self.policy.std * self.eps_per_gen)) * weighted_noise
 
 
 class SGD(Optimizer):

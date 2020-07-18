@@ -28,11 +28,17 @@ class NoiseTable:
     def get(self, i, size) -> np.ndarray:
         return self.noise[i:i + size]
 
-    def sample(self, size=None, seed=None) -> Tuple[int, np.ndarray]:
+    def sample_idx(self, rs: np.random.RandomState, size: int):
+        return rs.randint(0, len(self) - size)
+
+    def sample(self, rs: np.random.RandomState = None, size=None) -> Tuple[int, np.ndarray]:
         if size is None:
             size = self.n_params
 
-        idx = np.random.RandomState(seed).randint(0, len(self) - size)
+        if rs is None:
+            rs = np.random.RandomState()
+
+        idx = self.sample_idx(rs, size)
         return idx, self.get(idx, size)
 
     def __getitem__(self, item) -> np.ndarray:

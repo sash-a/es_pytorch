@@ -1,19 +1,29 @@
 {
-  "env_name": "HopperBulletEnv-v0",
+  "env": {
+    "name": "HopperBulletEnv-v0",
+    "max_steps": 2000
+  },
+  "noise": {
+    "table_size": 250000000,
+    "std": 0.02
+  },
+  "policy": {
+    "std": 0.01
+  },
+  "general": {
+    "gens": 1000000,
+    "eps_per_gen": 1000,
+    "eps_per_policy": 1,
 
-  "seed": null,
-  "table_size": 250000000,
-  "noise_stdev": 0.02,
+    "eval_prob": 0.03,
 
-  "batch_size": 500,
-  "lr": 0.01,
-  "l2coeff": 0.005,
+    "seed": 123,
 
+    "batch_size": 500,
 
-  "gens": 1000000,
-  "eps_per_gen": 5000,
-  "eps_per_policy": 1,
-  "max_env_steps": 2000,
+    "lr": 0.01,
+    "l2coeff": 0.005,
 
-  "save_interval": 10000
+    "save_interval": 512
+  }
 }
