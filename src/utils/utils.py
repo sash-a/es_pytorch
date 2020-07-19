@@ -1,7 +1,6 @@
 import argparse
 import json
 from collections import namedtuple
-from typing import List
 
 import numpy as np
 
@@ -27,14 +26,12 @@ def batch_noise(inds: np.ndarray, nt: NoiseTable, batch_size: int):
 
 def scale_noise(fits: np.ndarray, noise_inds: np.ndarray, nt: NoiseTable, batch_size: int):
     """Scales the noise according to the fitness each noise ind achieved"""
-    batched_fits = [[fits[i + j] for i in range(batch_size)] for j in range(0, len(fits) - batch_size, batch_size)]
-    leftover = len(fits) % batch_size  # appending the rest that didn't make a full batch
-    if leftover != 0:
-        batched_fits.append(fits[-leftover:])
-
+    assert len(fits) == len(noise_inds)
     total = 0
+    batched_fits = [fits[i:min(i + batch_size, len(fits))] for i in range(0, len(fits), batch_size)]
 
     for fit_batch, noise_batch in zip(batched_fits, batch_noise(noise_inds, nt, batch_size)):
+        print(f'fit batch shape: {fit_batch.shape}\nnoise batch shape: {noise_batch.shape}')
         total += np.dot(fit_batch, noise_batch)
 
     return total

@@ -7,11 +7,11 @@ from typing import Optional
 
 import gym
 import numpy as np
-from numpy.random import RandomState
 # noinspection PyUnresolvedReferences
 import pybullet_envs
 import torch
 from mpi4py import MPI
+from numpy.random import RandomState
 
 from es.noisetable import NoiseTable
 from es.optimizers import ES
@@ -45,8 +45,9 @@ def run(cfg,
             fits_neg.append(eval_one(policy, -noise, fit_fn, env, cfg.env.max_steps, rs))
 
         # share results and noise inds to all processes
-        results = np.array([fits_pos * comm.size, fits_neg * comm.size, inds * comm.size])
-        comm.Alltoall(results, results)
+        send_results = np.array([[fp, fn, i] for fp, fn, i in zip(fits_pos, fits_neg, inds)] * comm.size)
+        results = np.empty(send_results.shape)
+        comm.Alltoall(send_results, results)
 
         # approximating gradient and update policy params
         fits = rank_fn(results[:, 0] - results[:, 1])  # subtracting rewards that used negative noise
