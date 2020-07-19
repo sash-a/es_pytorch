@@ -7,6 +7,7 @@ from typing import Optional
 
 import gym
 import numpy as np
+from numpy.random import RandomState
 # noinspection PyUnresolvedReferences
 import pybullet_envs
 import torch
@@ -25,9 +26,9 @@ def run(cfg,
         optim: ES,  # TODO make generic optimizer
         nt: NoiseTable,
         env: gym.Env,
-        rs: np.random.RandomState,
+        rs: RandomState,
         rank_fn: Callable[[np.ndarray], np.ndarray],
-        eval_fn: Callable[[torch.nn.Module, gym.Env, int, np.random.RandomState], float],
+        fit_fn: Callable[[torch.nn.Module, gym.Env, int, RandomState], float],
         reporter: Reporter = Reporter()):
     """Runs the evolutionary strategy"""
 
@@ -40,15 +41,12 @@ def run(cfg,
         for _ in range(eps_per_proc):
             idx, noise = nt.sample(rs)
             inds.append(idx)
-            fits_pos.append(eval_single(policy, noise, eval_fn, env, cfg.env.max_steps, rs))
-            fits_neg.append(eval_single(policy, -noise, eval_fn, env, cfg.env.max_steps, rs))
+            fits_pos.append(eval_one(policy, noise, fit_fn, env, cfg.env.max_steps, rs))
+            fits_neg.append(eval_one(policy, -noise, fit_fn, env, cfg.env.max_steps, rs))
 
         # share results and noise inds to all processes
         results = np.array([fits_pos * comm.size, fits_neg * comm.size, inds * comm.size])
         comm.Alltoall(results, results)
-
-        if comm.rank == 0:  # print results on the main process
-            reporter.report_fits(gen, np.concatenate((results[:, 0], results[:, 1])))
 
         # approximating gradient and update policy params
         fits = rank_fn(results[:, 0] - results[:, 1])  # subtracting rewards that used negative noise
@@ -56,13 +54,17 @@ def run(cfg,
         weighted_noise = scale_noise(fits, noise_inds, nt, cfg.general.batch_size)
         optim.step(weighted_noise)
 
-        if comm.rank == 0 and gen % cfg.general.save_interval == 0 and cfg.general.save_interval > 0:  # checkpoints
-            if not os.path.exists('saved'):
-                os.makedirs('saved')
-            pickle.dump(policy, open(f'saved/policy-{gen}', 'wb'))
+        if comm.rank == 0:
+            noiseless_fit = eval_one(policy, np.zeros(len(policy)), fit_fn, env, cfg.env.max_steps, None)
+            reporter.report_fits(gen, np.concatenate((results[:, 0], results[:, 1])))
+            reporter.report_noiseless(gen, noiseless_fit)
+            if gen % cfg.general.save_interval == 0 and cfg.general.save_interval > 0:  # checkpoints
+                if not os.path.exists('saved'):
+                    os.makedirs('saved')
+                pickle.dump(policy, open(f'saved/policy-{gen}', 'wb'))
 
 
-def eval_single(policy: Policy, noise, eval_fn, env: gym.Env, max_steps: int, rs: Optional[np.random.RandomState]):
+def eval_one(policy: Policy, noise: np.ndarray, fit_fn, env: gym.Env, steps: int, rs: Optional[RandomState]) -> float:
     net = policy.pheno(noise)
-    fitness = eval_fn(net, env, max_steps, rs)
+    fitness = fit_fn(net, env, steps, rs)
     return fitness
