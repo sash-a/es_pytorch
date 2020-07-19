@@ -31,7 +31,6 @@ def scale_noise(fits: np.ndarray, noise_inds: np.ndarray, nt: NoiseTable, batch_
     batched_fits = [fits[i:min(i + batch_size, len(fits))] for i in range(0, len(fits), batch_size)]
 
     for fit_batch, noise_batch in zip(batched_fits, batch_noise(noise_inds, nt, batch_size)):
-        print(f'fit batch shape: {fit_batch.shape}\nnoise batch shape: {noise_batch.shape}')
         total += np.dot(fit_batch, noise_batch)
 
     return total
