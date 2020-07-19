@@ -16,8 +16,9 @@ from numpy.random import RandomState
 from es.noisetable import NoiseTable
 from es.optimizers import ES
 from es.policy import Policy
-from utils.reporter import Reporter
-from utils.utils import scale_noise
+from utils.gym_runner import run_model
+from utils.reporters import StdoutReporter, Reporter
+from utils.utils import scale_noise, compute_ranks
 
 
 def run(cfg,
@@ -26,10 +27,10 @@ def run(cfg,
         optim: ES,  # TODO make generic optimizer
         nt: NoiseTable,
         env: gym.Env,
-        rs: RandomState,
-        rank_fn: Callable[[np.ndarray], np.ndarray],
-        fit_fn: Callable[[torch.nn.Module, gym.Env, int, RandomState], float],
-        reporter: Reporter = Reporter()):
+        rs: RandomState = np.random.RandomState(),
+        rank_fn: Callable[[np.ndarray], np.ndarray] = compute_ranks,
+        fit_fn: Callable[[torch.nn.Module, gym.Env, int, RandomState], float] = run_model,
+        reporter: Reporter = StdoutReporter()):
     """Runs the evolutionary strategy"""
 
     # number of episodes per process. Total = cfg.eps_per_gen
