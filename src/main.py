@@ -6,7 +6,7 @@ from mpi4py import MPI
 
 from es.es_runner import run
 from es.noisetable import NoiseTable
-from es.optimizers import ES
+from es.optimizers import ES, Optimizer, Adam
 from es.policy import Policy
 from utils import gym_runner, utils
 from utils.nn import FullyConnected
@@ -23,9 +23,9 @@ if __name__ == '__main__':
     rs = np.random.RandomState()
 
     policy: Policy = Policy(FullyConnected(15, 3, 256, 2, torch.nn.Tanh, cfg.policy), cfg.noise.std)
-    optim: ES = ES(policy, cfg.general.lr, cfg.general.eps_per_gen)
+    optim: Optimizer = Adam(policy, cfg.general.lr)
     nt: NoiseTable = NoiseTable.create_shared_noisetable(comm, cfg.noise.table_size, len(policy), cfg.general.seed)
     env: gym.Env = gym.make(cfg.env.name)
-    reporter = LoggerReporter()
+    reporter = LoggerReporter(comm, cfg)
 
     run(cfg, comm, policy, optim, nt, env, rs, utils.compute_centered_ranks, gym_runner.run_model, reporter)

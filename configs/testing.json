@@ -15,8 +15,6 @@
     "eps_per_gen": 1000,
     "eps_per_policy": 1,
 
-    "eval_prob": 0.03,
-
     "seed": 123,
 
     "batch_size": 500,

@@ -1,54 +1,55 @@
-# https://github.com/uber-research/deep-neuroevolution
+# Adapted from: https://github.com/uber-research/deep-neuroevolution
+from abc import ABC, abstractmethod
 
 import numpy as np
 
 from es.policy import Policy
 
 
-class Optimizer(object):
-    def __init__(self, theta):
-        self.theta = theta
-        self.dim = len(self.theta)
-        self.t = 0
-
-    def update(self, globalg):
-        self.t += 1
-        step = self._compute_step(globalg)
-        theta = self.theta
-        ratio = np.linalg.norm(step) / np.linalg.norm(theta)
-        new_theta = self.theta + step
-        self.theta = new_theta
-        return ratio, new_theta
-
-    def _compute_step(self, globalg):
-        raise NotImplementedError
-
-
-class ES:
-    def __init__(self, policy: Policy, lr: float, eps_per_gen: int):
+class Optimizer(ABC):
+    def __init__(self, policy: Policy):
         self.policy: Policy = policy
-        self.lr: float = lr
-        self.eps_per_gen: int = eps_per_gen
+        self.dim: int = len(policy)
+        self.t: int = 0
 
-    def step(self, weighted_noise: np.ndarray):
-        self.policy.flat_params += (self.lr / (self.policy.std * self.eps_per_gen)) * weighted_noise
+    def step(self, globalg):
+        """
+        Updates the flat_params of the policy
+        :param globalg: the average of the sum of the noises weighted by the rewards they received
+        :return: the new flat_params
+        """
+        self.t += 1
+        self.policy.flat_params += self._compute_step(globalg)
+        return self.policy.flat_params
+
+    @abstractmethod
+    def _compute_step(self, globalg):
+        pass
+
+
+class ES(Optimizer):
+    def __init__(self, policy: Policy, lr: float):
+        super().__init__(policy)
+        self.lr: float = lr
+
+    def _compute_step(self, globalg: np.ndarray):
+        return (self.lr / self.policy.std) * globalg
 
 
 class SGD(Optimizer):
-    def __init__(self, theta, stepsize, momentum=0.9):
-        Optimizer.__init__(self, theta)
+    def __init__(self, policy: Policy, stepsize, momentum=0.9):
+        Optimizer.__init__(self, policy)
         self.v = np.zeros(self.dim, dtype=np.float32)
         self.stepsize, self.momentum = stepsize, momentum
 
     def _compute_step(self, globalg):
         self.v = self.momentum * self.v + (1. - self.momentum) * globalg
-        step = -self.stepsize * self.v
-        return step
+        return -self.stepsize * self.v
 
 
 class Adam(Optimizer):
-    def __init__(self, theta, stepsize, beta1=0.9, beta2=0.999, epsilon=1e-08):
-        Optimizer.__init__(self, theta)
+    def __init__(self, policy: Policy, stepsize, beta1=0.9, beta2=0.999, epsilon=1e-08):
+        Optimizer.__init__(self, policy)
         self.stepsize = stepsize
         self.beta1 = beta1
         self.beta2 = beta2

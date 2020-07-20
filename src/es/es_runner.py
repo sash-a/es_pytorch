@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-import os
-import pickle
+import time
 from collections import Callable
 from typing import Optional
 
@@ -14,7 +13,7 @@ from mpi4py import MPI
 from numpy.random import RandomState
 
 from es.noisetable import NoiseTable
-from es.optimizers import ES
+from es.optimizers import Optimizer
 from es.policy import Policy
 from utils.gym_runner import run_model
 from utils.reporters import StdoutReporter, Reporter
@@ -24,13 +23,13 @@ from utils.utils import scale_noise, compute_ranks
 def run(cfg,
         comm: MPI.Comm,
         policy: Policy,
-        optim: ES,  # TODO make generic optimizer
+        optim: Optimizer,
         nt: NoiseTable,
         env: gym.Env,
         rs: RandomState = np.random.RandomState(),
         rank_fn: Callable[[np.ndarray], np.ndarray] = compute_ranks,
         fit_fn: Callable[[torch.nn.Module, gym.Env, int, RandomState], float] = run_model,
-        reporter: Reporter = StdoutReporter()):
+        reporter: Reporter = StdoutReporter(MPI.COMM_WORLD)):
     """Runs the evolutionary strategy"""
 
     # number of episodes per process. Total = cfg.eps_per_gen
@@ -38,7 +37,10 @@ def run(cfg,
     eps_per_proc = int((cfg.general.eps_per_gen / comm.size) / 2)
 
     for gen in range(cfg.general.gens):
+        gen_start = time.time()
+        reporter.start_gen(gen)
         fits_pos, fits_neg, inds = [], [], []
+
         for _ in range(eps_per_proc):
             idx, noise = nt.sample(rs)
             inds.append(idx)
@@ -53,17 +55,14 @@ def run(cfg,
         # approximating gradient and update policy params
         fits = rank_fn(results[:, 0] - results[:, 1])  # subtracting rewards that used negative noise
         noise_inds = results[:, 2]
-        weighted_noise = scale_noise(fits, noise_inds, nt, cfg.general.batch_size)
-        optim.step(weighted_noise)
+        grad = scale_noise(fits, noise_inds, nt, cfg.general.batch_size) / cfg.general.eps_per_gen
+        optim.step(cfg.general.l2coeff * policy.flat_params - grad)
 
         if comm.rank == 0:
-            noiseless_fit = eval_one(policy, np.zeros(len(policy)), fit_fn, env, cfg.env.max_steps, None)
-            reporter.report_fits(gen, np.concatenate((results[:, 0], results[:, 1])))
-            reporter.report_noiseless(gen, noiseless_fit)
-            if gen % cfg.general.save_interval == 0 and cfg.general.save_interval > 0:  # checkpoints
-                if not os.path.exists('saved'):
-                    os.makedirs('saved')
-                pickle.dump(policy, open(f'saved/policy-{gen}', 'wb'))
+            reporter.report_noiseless(eval_one(policy, np.zeros(len(policy)), fit_fn, env, cfg.env.max_steps, None))
+
+        reporter.report_fits(np.concatenate((results[:, 0], results[:, 1])))
+        reporter.end_gen(time.time() - gen_start, policy)
 
 
 def eval_one(policy: Policy, noise: np.ndarray, fit_fn, env: gym.Env, steps: int, rs: Optional[RandomState]) -> float:
