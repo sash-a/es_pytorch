@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import time
-from collections import Callable
+from collections.abc import Callable
 from typing import Optional
 
 import gym

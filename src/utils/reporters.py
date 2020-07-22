@@ -90,12 +90,13 @@ class LoggerReporter(MPIReporter):
     def __init__(self, comm: MPI.Comm, cfg, log_name=None):
         super().__init__(comm)
 
-        self.gen = 0
-        self.cfg = cfg
+        if comm.rank == 0:
+            self.gen = 0
+            self.cfg = cfg
 
-        if log_name is None:
-            log_name = datetime.now().strftime('es__%d_%m_%y__%H_%M_%S.log')
-        logging.basicConfig(filename=log_name, level=logging.DEBUG)
+            if log_name is None:
+                log_name = datetime.now().strftime('es__%d_%m_%y__%H_%M_%S.log')
+            logging.basicConfig(filename=log_name, level=logging.DEBUG)
 
     def _start_gen(self, gen: int):
         logging.info(f'gen:{gen}')

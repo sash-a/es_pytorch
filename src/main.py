@@ -22,7 +22,7 @@ if __name__ == '__main__':
     torch.random.manual_seed(cfg.general.seed)
     rs = np.random.RandomState()
 
-    policy: Policy = Policy(FullyConnected(15, 3, 256, 2, torch.nn.Tanh, cfg.policy), cfg.noise.std)
+    policy: Policy = Policy(FullyConnected(26, 6, 256, 2, torch.nn.Tanh, cfg.policy), cfg.noise.std)
     optim: Optimizer = Adam(policy, cfg.general.lr)
     nt: NoiseTable = NoiseTable.create_shared_noisetable(comm, cfg.noise.table_size, len(policy), cfg.general.seed)
     env: gym.Env = gym.make(cfg.env.name)
