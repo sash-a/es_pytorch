@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+import pickle
+
 import numpy as np
 import torch
 
@@ -17,13 +21,20 @@ class Policy(torch.nn.Module):
     def get_flat(module: torch.nn.Module) -> np.ndarray:
         return torch.cat([t.flatten() for t in module.state_dict().values()]).numpy()
 
+    @staticmethod
+    def load(file: str) -> Policy:
+        policy: Policy = pickle.load(open(file, 'rb'))
+        policy.set_nn_params(policy.flat_params)
+        return policy
+
     def set_nn_params(self, params: np.ndarray) -> torch.nn.Module:
         with torch.no_grad():
             d = {}  # new state dict
             curr_params_idx = 0
             for name, weights in self._module.state_dict().items():
                 n_params = torch.prod(torch.tensor(weights.shape))
-                d[name] = torch.from_numpy(np.reshape(params[curr_params_idx:curr_params_idx + n_params], weights.size()))
+                d[name] = torch.from_numpy(
+                    np.reshape(params[curr_params_idx:curr_params_idx + n_params], weights.size()))
                 curr_params_idx += n_params
 
             self._module.load_state_dict(d)

@@ -1,13 +1,13 @@
-import pickle
-
 import gym
 import numpy as np
 import torch
 
-from es.policy import Policy
 
-
-def run_model(model: torch.nn.Module, env: gym.Env, max_steps: int, rs: np.random.RandomState = None, episodes: int = 1,
+def run_model(model: torch.nn.Module,
+              env: gym.Env,
+              max_steps: int,
+              rs: np.random.RandomState = None,
+              episodes: int = 1,
               render: bool = False):
     fitness = 0
     with torch.no_grad():
@@ -27,9 +27,4 @@ def run_model(model: torch.nn.Module, env: gym.Env, max_steps: int, rs: np.rando
                 if done:
                     break
 
-    return fitness
-
-
-def load_model(file: str) -> torch.nn.Module:
-    policy: Policy = pickle.load(open(file, 'rb'))
-    return policy.set_nn_params(policy.flat_params)
+    return fitness / episodes

@@ -12,8 +12,8 @@
   },
   "general": {
     "gens": 1000000,
-    "eps_per_gen": 1000,
-    "eps_per_policy": 1,
+    "eps_per_gen": 960,
+    "eps_per_policy": 5,
 
     "seed": 123,
 
@@ -22,6 +22,6 @@
     "lr": 0.01,
     "l2coeff": 0.005,
 
-    "save_interval": 512
+    "save_interval": 500
   }
 }

@@ -28,7 +28,7 @@ def run(cfg,
         env: gym.Env,
         rs: RandomState = np.random.RandomState(),
         rank_fn: Callable[[np.ndarray], np.ndarray] = compute_ranks,
-        fit_fn: Callable[[torch.nn.Module, gym.Env, int, RandomState], float] = run_model,
+        fit_fn: Callable[[torch.nn.Module, gym.Env, int, RandomState, Optional[int]], float] = run_model,
         reporter: Reporter = StdoutReporter(MPI.COMM_WORLD)):
     """Runs the evolutionary strategy"""
 
@@ -44,8 +44,8 @@ def run(cfg,
         for _ in range(eps_per_proc):
             idx, noise = nt.sample(rs)
             inds.append(idx)
-            fits_pos.append(eval_one(policy, noise, fit_fn, env, cfg.env.max_steps, rs))
-            fits_neg.append(eval_one(policy, -noise, fit_fn, env, cfg.env.max_steps, rs))
+            fits_pos.append(eval_one(policy, noise, fit_fn, env, cfg.env.max_steps, rs, cfg.general.eps_per_policy))
+            fits_neg.append(eval_one(policy, -noise, fit_fn, env, cfg.env.max_steps, rs, cfg.general.eps_per_policy))
 
         # share results and noise inds to all processes
         send_results = np.array([[fp, fn, i] for fp, fn, i in zip(fits_pos, fits_neg, inds)] * comm.size)
@@ -65,7 +65,8 @@ def run(cfg,
         reporter.end_gen(time.time() - gen_start, policy)
 
 
-def eval_one(policy: Policy, noise: np.ndarray, fit_fn, env: gym.Env, steps: int, rs: Optional[RandomState]) -> float:
+def eval_one(policy: Policy, noise: np.ndarray, fit_fn, env: gym.Env, steps: int, rs: Optional[RandomState],
+             episodes: int = 1) -> float:
     net = policy.pheno(noise)
-    fitness = fit_fn(net, env, steps, rs)
+    fitness = fit_fn(net, env, steps, rs, episodes)
     return fitness
