@@ -1,16 +1,16 @@
 import gym
+import numpy as np
 # import mkl
 import torch
-import numpy as np
 from mpi4py import MPI
 
 from es.es_runner import run
 from es.noisetable import NoiseTable
-from es.optimizers import ES, Optimizer, Adam
+from es.optimizers import Optimizer, Adam
 from es.policy import Policy
 from utils import gym_runner, utils
 from utils.nn import FullyConnected
-from utils.reporters import StdoutReporter, LoggerReporter
+from utils.reporters import LoggerReporter
 
 if __name__ == '__main__':
     comm: MPI.Comm = MPI.COMM_WORLD
@@ -22,10 +22,10 @@ if __name__ == '__main__':
     torch.random.manual_seed(cfg.general.seed)
     rs = np.random.RandomState()
 
-    policy: Policy = Policy(FullyConnected(26, 6, 256, 2, torch.nn.Tanh, cfg.policy), cfg.noise.std)
+    policy: Policy = Policy(FullyConnected(15, 3, 256, 2, torch.nn.Tanh, cfg.policy), cfg.noise.std)
     optim: Optimizer = Adam(policy, cfg.general.lr)
     nt: NoiseTable = NoiseTable.create_shared_noisetable(comm, cfg.noise.table_size, len(policy), cfg.general.seed)
     env: gym.Env = gym.make(cfg.env.name)
-    reporter = LoggerReporter(comm, cfg)
+    reporter = LoggerReporter(comm, cfg, cfg.general.name)
 
     run(cfg, comm, policy, optim, nt, env, rs, utils.compute_centered_ranks, gym_runner.run_model, reporter)

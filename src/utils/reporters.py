@@ -95,8 +95,8 @@ class LoggerReporter(MPIReporter):
             self.cfg = cfg
 
             if log_name is None:
-                log_name = datetime.now().strftime('es__%d_%m_%y__%H_%M_%S.log')
-            logging.basicConfig(filename=log_name, level=logging.DEBUG)
+                log_name = datetime.now().strftime('es__%d_%m_%y__%H_%M_%S')
+            logging.basicConfig(filename=f'logs/{log_name}.log', level=logging.DEBUG)
 
     def _start_gen(self, gen: int):
         logging.info(f'gen:{gen}')
