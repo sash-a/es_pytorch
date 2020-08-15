@@ -19,12 +19,13 @@ if __name__ == '__main__':
     cfg = utils.load_config(utils.parse_args())
 
     # This is required for the moment, as parameter initialization needs to be deterministic across all processes
-    torch.random.manual_seed(cfg.general.seed)
-    rs = np.random.RandomState()
+    assert cfg.policy.seed is not None
+    torch.random.manual_seed(cfg.policy.seed)
+    rs = np.random.RandomState()  # this must not be seeded, otherwise all procs will use the same random noise
 
     policy: Policy = Policy(FullyConnected(15, 3, 256, 2, torch.nn.Tanh, cfg.policy), cfg.noise.std)
     optim: Optimizer = Adam(policy, cfg.general.lr)
-    nt: NoiseTable = NoiseTable.create_shared_noisetable(comm, cfg.noise.table_size, len(policy), cfg.general.seed)
+    nt: NoiseTable = NoiseTable.create_shared_noisetable(comm, cfg.noise.table_size, len(policy), cfg.noise.seed)
     env: gym.Env = gym.make(cfg.env.name)
     reporter = LoggerReporter(comm, cfg, cfg.general.name)
 
