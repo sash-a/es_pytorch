@@ -85,24 +85,4 @@ class NoiseTable:
             shared_arr[:size] = noise  # set array values
 
         global_comm.Barrier()  # wait until all nodes have set the array values
-        check_values(global_comm, nt)
         return nt
-
-
-def check_values(comm: MPI.Comm, nt: NoiseTable):
-    my_sample = np.concatenate((nt.noise[:5], nt.noise[-5:]))
-    other_sample = np.empty(my_sample.shape)
-
-    if comm.rank == 0:
-        comm.Send([my_sample, MPI.DOUBLE], (comm.rank + 1) % comm.size)
-
-    comm.Recv(other_sample, (comm.rank - 1) % comm.size)
-
-    if comm.rank != 0:
-        comm.Send([my_sample, MPI.DOUBLE], (comm.rank + 1) % comm.size)
-
-    if not (my_sample == other_sample).all():
-        print(f'rank {comm.rank} sample: {my_sample} != {other_sample}')
-        raise Exception(f'rank {comm.rank} sample: {my_sample} != {other_sample}')
-    else:
-        print(f'rank {comm.rank} has same noise values as {(comm.rank - 1) % comm.size}')
