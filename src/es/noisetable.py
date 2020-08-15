@@ -22,8 +22,8 @@ def create_shared_arr(comm: MPI.Comm, size: int) -> np.ndarray:
 
 class NoiseTable:
     def __init__(self, n_params: int, noise: np.ndarray):
-        self.n_params = n_params
-        self.noise = noise
+        self.n_params: int = n_params
+        self.noise: np.ndarray = noise
 
     def get(self, i, size) -> np.ndarray:
         return self.noise[i:i + size]
@@ -59,7 +59,7 @@ class NoiseTable:
                                  size: int,
                                  n_params: int,
                                  seed=None) -> NoiseTable:
-
+        """Shares a noise table across multiple nodes. Assumes that each node has at least 2 MPI processes"""
         local_comm: MPI.Comm = global_comm.Split_type(MPI.COMM_TYPE_SHARED)
 
         n_nodes = global_comm.allreduce(1 if local_comm.rank == 0 else 0, MPI.SUM)
@@ -68,20 +68,39 @@ class NoiseTable:
         nt = NoiseTable(n_params, shared_arr)
 
         if global_comm.rank == 0:
-            noise = NoiseTable.make_noise(size, seed)  # create arr values
-
-            for i in range(n_nodes - 1):
+            # create and distribute seed
+            seed = seed if seed is not None else np.random.randint(0, 10000000)  # create seed if one is not provided
+            for i in range(n_nodes):
                 global_rank_to_send = global_comm.recv(source=MPI.ANY_SOURCE)  # recv global rank from each nodes 0 proc
-                print(f'Sending noise to rank: {global_rank_to_send}')
-                global_comm.Send([noise, MPI.DOUBLE], global_rank_to_send)  # send arr to that rank
+                print(f'Sending seed {seed} to rank {global_rank_to_send}')
+                global_comm.send(seed, global_rank_to_send)  # send seed to that rank
 
-            shared_arr[:size] = noise
-
-        elif local_comm.rank == 0:
-            noise = np.empty(size, dtype='d')
+        if local_comm.rank == 1:
+            # send rank, receive seed and populated shared mem with noise
             global_comm.send(global_comm.rank, 0)  # send local rank
-            global_comm.Recv([noise, MPI.DOUBLE], 0)  # receive arr values
+            seed = global_comm.recv(0)  # receive noise seed
+            print(f'Rank {global_comm.rank} received seed {seed}')
+
+            noise = NoiseTable.make_noise(size, seed)  # create arr values
             shared_arr[:size] = noise  # set array values
 
         global_comm.Barrier()  # wait until all nodes have set the array values
+        check_values(global_comm, nt)
         return nt
+
+
+def check_values(comm: MPI.Comm, nt: NoiseTable):
+    my_sample = np.concatenate((nt.noise[:5], nt.noise[-5:]))
+    other_sample = np.empty(my_sample.shape)
+
+    if comm.rank == 0:
+        comm.Send([my_sample, MPI.DOUBLE], (comm.rank + 1) % comm.size)
+
+    comm.Recv(other_sample, (comm.rank - 1) % comm.size)
+
+    if comm.rank != 0:
+        comm.Send([my_sample, MPI.DOUBLE], (comm.rank + 1) % comm.size)
+
+    if my_sample != other_sample:
+        print(f'rank {comm.rank} sample: {my_sample} != {other_sample}')
+        raise Exception(f'rank {comm.rank} sample: {my_sample} != {other_sample}')
