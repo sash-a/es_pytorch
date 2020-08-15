@@ -69,7 +69,7 @@ class NoiseTable:
 
         if global_comm.rank == 0:
             # create and distribute seed
-            seed = seed if seed is not None else np.random.randint(0, 10000000)  # create seed if one is not provided
+            seed = seed if seed is not None else np.random.randint(0, 10000)  # create seed if one is not provided
             for i in range(n_nodes):
                 global_rank_to_send = global_comm.recv(source=MPI.ANY_SOURCE)  # recv global rank from each nodes 0 proc
                 print(f'Sending seed {seed} to rank {global_rank_to_send}')
@@ -78,7 +78,7 @@ class NoiseTable:
         if local_comm.rank == 1:
             # send rank, receive seed and populated shared mem with noise
             global_comm.send(global_comm.rank, 0)  # send local rank
-            seed = global_comm.recv(0)  # receive noise seed
+            seed = global_comm.recv(source=0)  # receive noise seed
             print(f'Rank {global_comm.rank} received seed {seed}')
 
             noise = NoiseTable.make_noise(size, seed)  # create arr values
@@ -101,6 +101,8 @@ def check_values(comm: MPI.Comm, nt: NoiseTable):
     if comm.rank != 0:
         comm.Send([my_sample, MPI.DOUBLE], (comm.rank + 1) % comm.size)
 
-    if my_sample != other_sample:
+    if not (my_sample == other_sample).all():
         print(f'rank {comm.rank} sample: {my_sample} != {other_sample}')
         raise Exception(f'rank {comm.rank} sample: {my_sample} != {other_sample}')
+    else:
+        print(f'rank {comm.rank} has same noise values as {(comm.rank - 1) % comm.size}')
