@@ -61,7 +61,9 @@ class NoiseTable:
                                  seed=None) -> NoiseTable:
 
         local_comm: MPI.Comm = global_comm.Split_type(MPI.COMM_TYPE_SHARED)
+
         n_nodes = global_comm.allreduce(1 if local_comm.rank == 0 else 0, MPI.SUM)
+
         shared_arr = create_shared_arr(local_comm, size)
         nt = NoiseTable(n_params, shared_arr)
 
@@ -71,7 +73,7 @@ class NoiseTable:
             for i in range(n_nodes - 1):
                 global_rank_to_send = global_comm.recv(source=MPI.ANY_SOURCE)  # recv global rank from each nodes 0 proc
                 print(f'Sending noise to rank: {global_rank_to_send}')
-                global_comm.Send([noise + i + 1, MPI.DOUBLE], global_rank_to_send)  # send arr to that rank
+                global_comm.Send([noise, MPI.DOUBLE], global_rank_to_send)  # send arr to that rank
 
             shared_arr[:size] = noise
 
