@@ -23,7 +23,7 @@ if __name__ == '__main__':
     torch.random.manual_seed(cfg.policy.seed)
     rs = np.random.RandomState()  # this must not be seeded, otherwise all procs will use the same random noise
 
-    policy: Policy = Policy(FullyConnected(15, 3, 256, 2, torch.nn.Tanh, cfg.policy), cfg.noise.std)
+    policy: Policy = Policy(FullyConnected(22, 6, 256, 2, torch.nn.Tanh, cfg.policy), cfg.noise.std)
     optim: Optimizer = Adam(policy, cfg.general.lr)
     nt: NoiseTable = NoiseTable.create_shared_noisetable(comm, cfg.noise.table_size, len(policy), cfg.noise.seed)
     env: gym.Env = gym.make(cfg.env.name)

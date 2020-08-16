@@ -1,6 +1,6 @@
 {
   "env": {
-    "name": "HopperBulletEnv-v0",
+    "name": "Walker2DBulletEnv-v0",
     "max_steps": 2000
   },
 

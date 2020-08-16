@@ -9,5 +9,6 @@ if __name__ == '__main__':
     import pybullet_envs
 
     e = gym.make('HopperBulletEnv-v0', render=True).unwrapped
-    run_model(Policy.load('../saved/saved/policy-4096').pheno(np.zeros(1000000)), e, 10000, render=True)
+    r, d = run_model(Policy.load('../saved/dist/policy-1000').pheno(np.zeros(136451)), e, 2000, render=True)
+    print(f'\n\nrewards {r}\ndist {d}\n\n')
     e.close()
