@@ -18,9 +18,9 @@
   "general": {
     "name": "test",
 
-    "gens": 1000000,
+    "gens": 10000,
     "eps_per_gen": 960,
-    "eps_per_policy": 5,
+    "eps_per_policy": 1,
 
     "seed": 456,
 
