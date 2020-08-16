@@ -114,6 +114,7 @@ class LoggerReporter(MPIReporter):
         logging.info(f'time:{time:0.2f}')
 
         if self.gen % self.cfg.general.save_interval == 0 and self.cfg.general.save_interval > 0:  # checkpoints
-            if not os.path.exists('saved'):
-                os.makedirs('saved')
-            pickle.dump(noiseless_policy, open(f'saved/policy-{self.gen}', 'wb'))
+            folder = f'saved/{self.cfg.general.name}'
+            if not os.path.exists(folder):
+                os.makedirs(folder)
+            pickle.dump(noiseless_policy, open(f'{folder}/policy-{self.gen}', 'wb'))
