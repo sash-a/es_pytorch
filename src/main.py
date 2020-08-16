@@ -29,4 +29,4 @@ if __name__ == '__main__':
     env: gym.Env = gym.make(cfg.env.name)
     reporter = LoggerReporter(comm, cfg, cfg.general.name)
 
-    run(cfg, comm, policy, optim, nt, env, rs, utils.compute_centered_ranks, gym_runner.run_model, reporter)
+    run(cfg, comm, policy, optim, nt, env, rs, utils.compute_centered_ranks, gym_runner.model_dist, reporter)
