@@ -35,7 +35,7 @@ if __name__ == '__main__':
                episodes: int = 1,
                render: bool = False):
         rew, dist = gym_runner.run_model(model, e, max_steps, r, episodes, render)
-        return rew + dist[0]
+        return rew[0] + 4 * dist[0]
 
 
     run(cfg, comm, policy, optim, nt, env, rs, utils.compute_centered_ranks, fit_fn, reporter)
