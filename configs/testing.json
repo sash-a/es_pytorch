@@ -18,7 +18,7 @@
   "general": {
     "name": "test",
 
-    "gens": 10000,
+    "gens": 1000,
     "eps_per_gen": 960,
     "eps_per_policy": 1,
 
@@ -29,6 +29,6 @@
     "lr": 0.01,
     "l2coeff": 0.005,
 
-    "save_interval": 500
+    "save_interval": 100
   }
 }

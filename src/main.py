@@ -1,6 +1,5 @@
 import gym
 import numpy as np
-# import mkl
 import torch
 from mpi4py import MPI
 
@@ -14,7 +13,6 @@ from utils.reporters import LoggerReporter
 
 if __name__ == '__main__':
     comm: MPI.Comm = MPI.COMM_WORLD
-    # mkl.set_num_threads(1)  # https://towardsdatascience.com/paper-repro-deep-neuroevolution-756871e00a66
 
     cfg = utils.load_config(utils.parse_args())
 
@@ -29,4 +27,15 @@ if __name__ == '__main__':
     env: gym.Env = gym.make(cfg.env.name)
     reporter = LoggerReporter(comm, cfg, cfg.general.name)
 
-    run(cfg, comm, policy, optim, nt, env, rs, utils.compute_centered_ranks, gym_runner.model_dist, reporter)
+
+    def fit_fn(model: torch.nn.Module,
+               e: gym.Env,
+               max_steps: int,
+               r: np.random.RandomState = None,
+               episodes: int = 1,
+               render: bool = False):
+        rew, dist = gym_runner.run_model(model, e, max_steps, r, episodes, render)
+        return rew + dist[0]
+
+
+    run(cfg, comm, policy, optim, nt, env, rs, utils.compute_centered_ranks, fit_fn, reporter)
