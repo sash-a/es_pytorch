@@ -1,10 +1,17 @@
 import argparse
+import heapq
 import json
 from collections import namedtuple
 
 import numpy as np
+from scipy.spatial import distance
 
 from es.noisetable import NoiseTable
+
+
+def novelty(behaviour: np.ndarray, others: np.ndarray, n: int) -> float:
+    dists = heapq.nsmallest(n, distance.cdist(behaviour, others, 'sqeuclidean')[0])
+    return sum(dists)
 
 
 def batch_noise(inds: np.ndarray, nt: NoiseTable, batch_size: int):

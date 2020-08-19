@@ -22,7 +22,7 @@ class Reporter(ABC):
         pass
 
     @abstractmethod
-    def report_noiseless(self, fit: float):
+    def report_noiseless(self, fit: float, info: dict):
         """Reports the fitness of a evaluation using no noise from the table and noiseless actions"""
         pass
 
@@ -43,10 +43,10 @@ class MPIReporter(Reporter, ABC):
         if self.comm.rank == 0:
             self._report_fits(fits)
 
-    def report_noiseless(self, fit: float):
+    def report_noiseless(self, fit: float, info: dict):
         """Reports the fitness of a evaluation using no noise from the table and noiseless actions"""
         if self.comm.rank == 0:
-            self._report_noiseless(fit)
+            self._report_noiseless(fit, info)
 
     def end_gen(self, time: float, policy: Policy):
         if self.comm.rank == 0:
@@ -61,7 +61,7 @@ class MPIReporter(Reporter, ABC):
         pass
 
     @abstractmethod
-    def _report_noiseless(self, fit: float):
+    def _report_noiseless(self, fit: float, info: dict):
         """Reports the fitness of a evaluation using no noise from the table and noiseless actions"""
         pass
 
@@ -79,7 +79,7 @@ class StdoutReporter(MPIReporter):
         mx = np.max(fits)
         print(f'avg:{avg:0.2f}-max:{mx:0.2f}')
 
-    def _report_noiseless(self, fit: float):
+    def _report_noiseless(self, fit: float, info: dict):
         print(f'noiseless:{fit:0.2f}')
 
     def _end_gen(self, time: float, noiseless_policy: Policy):
@@ -107,8 +107,10 @@ class LoggerReporter(MPIReporter):
         logging.info(f'avg:{np.mean(fits):0.2f}')
         logging.info(f'max:{np.max(fits):0.2f}')
 
-    def _report_noiseless(self, fit: float):
-        logging.info(f'noiseless:{fit:0.2f}')
+    def _report_noiseless(self, fit: float, info: dict):
+        logging.info(f'noiseless fit:{fit:0.2f}')
+        for k, v in info.items():
+            logging.info(f'noiseless {k}: {v}')
 
     def _end_gen(self, time: float, noiseless_policy: Policy):
         logging.info(f'time:{time:0.2f}')

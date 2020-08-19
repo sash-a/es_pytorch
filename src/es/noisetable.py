@@ -55,9 +55,10 @@ class NoiseTable:
         return np.random.RandomState(seed).randn(size)
 
     @staticmethod
-    def create_shared_noisetable(global_comm: MPI.Comm, size: int, n_params: int, seed=None) -> NoiseTable:
+    def create_shared(global_comm: MPI.Comm, size: int, n_params: int, seed=None) -> NoiseTable:
         """Shares a noise table across multiple nodes. Assumes that each node has at least 2 MPI processes"""
         local_comm: MPI.Comm = global_comm.Split_type(MPI.COMM_TYPE_SHARED)
+        assert local_comm.size > 1
 
         n_nodes = global_comm.allreduce(1 if local_comm.rank == 0 else 0, MPI.SUM)
 

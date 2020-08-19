@@ -1,6 +1,6 @@
 {
   "env": {
-    "name": "Walker2DBulletEnv-v0",
+    "name": "HopperBulletEnv-v0",
     "max_steps": 2000
   },
 
@@ -18,7 +18,7 @@
   "general": {
     "name": "test",
 
-    "gens": 1000,
+    "gens": 100000,
     "eps_per_gen": 960,
     "eps_per_policy": 1,
 
@@ -30,5 +30,11 @@
     "l2coeff": 0.005,
 
     "save_interval": 100
+  },
+
+  "novelty": {
+    "n": 10,
+    "thresh": 2,
+    "archive_size": -1
   }
 }
