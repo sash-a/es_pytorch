@@ -1,4 +1,5 @@
-from typing import Iterable
+import random
+from typing import List
 
 import gym
 import numpy as np
@@ -11,18 +12,11 @@ from es.optimizers import Adam, Optimizer
 from es.policy import Policy
 from utils import utils, gym_runner
 from utils.nn import FullyConnected
+from utils.novelty import novelty, update_archive
 from utils.reporters import LoggerReporter
-from utils.utils import novelty
 
-
-def share_archive(comm: MPI.Comm, local_archive) -> Iterable:
-    local_archive = np.array(local_archive)
-    sizes = comm.alltoall([local_archive.size] * comm.size)
-    send = local_archive * comm.size
-    recv = np.zeros(sum(sizes), dtype=local_archive.dtype)
-    comm.Alltoallv(send, (recv, sizes))
-    return recv
-
+BEHAVIOUR = 'behaviour'
+REWARD = 'reward'
 
 if __name__ == '__main__':
     comm: MPI.Comm = MPI.COMM_WORLD
@@ -34,44 +28,53 @@ if __name__ == '__main__':
     torch.random.manual_seed(cfg.policy.seed)
     rs = np.random.RandomState()  # this must not be seeded, otherwise all procs will use the same random noise
 
-    policy: Policy = Policy(FullyConnected(15, 3, 256, 2, torch.nn.Tanh, cfg.policy), cfg.noise.std)
-    optim: Optimizer = Adam(policy, cfg.general.lr)
-    nt: NoiseTable = NoiseTable.create_shared(comm, cfg.noise.table_size, len(policy), cfg.noise.seed)
+    population: List[Policy] = [
+        Policy(FullyConnected(15, 3, 256, 2, torch.nn.Tanh, cfg.policy), cfg.noise.std) for _ in
+        range(cfg.general.n_policies)
+    ]
+    optims: List[Optimizer] = [Adam(policy, cfg.general.lr) for policy in population]
+    nt: NoiseTable = NoiseTable.create_shared(comm, cfg.noise.table_size, len(population[0]), cfg.noise.seed)
     env: gym.Env = gym.make(cfg.env.name)
     reporter = LoggerReporter(comm, cfg, cfg.general.name)
 
-    archive = [[0] * int(3 * cfg.env.max_steps / 10) for _ in range(2)]
-    new_archive, behaviours = [], []
+    archive = []
+    policy_fits = []
+    best_rew = 0
 
 
-    def novelty_fit_fn(model: torch.nn.Module,
-                       e: gym.Env,
-                       max_steps: int,
-                       r: np.random.RandomState = None):
-        rews, behv = gym_runner.run_model(model, e, max_steps, r, False)
-        others = np.array(archive + new_archive + behaviours)  # grouping all other indvs
-        np_behv = np.array([behv], dtype=np.float64)
-        fit = novelty(np_behv, others, cfg.novelty.n)
+    def ns_fn(model: torch.nn.Module,
+              e: gym.Env,
+              max_steps: int,
+              r: np.random.RandomState = None):
+        rews, behv = gym_runner.run_model(model, e, max_steps, r)
+        fit = novelty(np.array([behv]), archive, cfg.novelty.n)
 
-        behaviours.append(behv)
-        if fit > cfg.novelty.thresh:
-            new_archive.append(behv)
-
-        return fit, {'dist': str(behv[-1]), 'rew': str(sum(rews))}
+        return fit, {BEHAVIOUR: behv, REWARD: sum(rews)}
 
 
-    def obj_fit_fn(model: torch.nn.Module,
-                   e: gym.Env,
-                   max_steps: int,
-                   r: np.random.RandomState = None):
-        rews, behv = gym_runner.run_model(model, e, max_steps, r, False)
+    def r_fn(model: torch.nn.Module,
+             e: gym.Env,
+             max_steps: int,
+             r: np.random.RandomState = None):
+        rews, behv = gym_runner.run_model(model, e, max_steps, r)
 
-        return sum(rews)
+        return sum(rews), {BEHAVIOUR: behv, REWARD: sum(rews)}
         # return behv[-1]
 
 
+    for policy in population:
+        _, info = r_fn(policy.pheno(np.zeros(len(policy))), env, cfg.env.max_steps, rs)
+        archive.append(info[BEHAVIOUR])
+
+    archive = np.array(archive)
+
+    for behaviour in archive:
+        policy_fits.append(novelty(np.array([behaviour]), archive, cfg.novelty.n))
+
     for gen in range(cfg.general.gens):
-        es.step(cfg, comm, policy, optim, nt, env, novelty_fit_fn, rs, utils.compute_centered_ranks, reporter)
-        new_archive = share_archive(comm, new_archive)
-        archive += new_archive
-        behaviours, new_archive = [], []
+        idx = random.choices(list(range(cfg.general.n_policies)), weights=policy_fits, k=1)[0]
+        idx = comm.scatter([idx] * comm.size)
+        fit, info = es.step(cfg, comm, population[idx], optims[idx], nt, env, ns_fn, rs, reporter=reporter)
+
+        archive = update_archive(comm, info[BEHAVIOUR], archive)
+        policy_fits[idx] = max(policy_fits[idx], fit)

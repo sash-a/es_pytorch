@@ -14,7 +14,7 @@ from es.policy import Policy
 
 class Reporter(ABC):
     @abstractmethod
-    def start_gen(self, gen: int):
+    def start_gen(self):
         pass
 
     @abstractmethod
@@ -22,12 +22,12 @@ class Reporter(ABC):
         pass
 
     @abstractmethod
-    def report_noiseless(self, fit: float, info: dict):
+    def report_noiseless(self, fit: float, info: dict, noiseless_policy: Policy):
         """Reports the fitness of a evaluation using no noise from the table and noiseless actions"""
         pass
 
     @abstractmethod
-    def end_gen(self, time: float, policy: Policy):
+    def end_gen(self, time: float):
         pass
 
 
@@ -35,25 +35,25 @@ class MPIReporter(Reporter, ABC):
     def __init__(self, comm: MPI.Comm):
         self.comm = comm
 
-    def start_gen(self, gen: int):
+    def start_gen(self):
         if self.comm.rank == 0:
-            self._start_gen(gen)
+            self._start_gen()
 
     def report_fits(self, fits: np.ndarray):
         if self.comm.rank == 0:
             self._report_fits(fits)
 
-    def report_noiseless(self, fit: float, info: dict):
+    def report_noiseless(self, fit: float, info: dict, noiseless_policy: Policy):
         """Reports the fitness of a evaluation using no noise from the table and noiseless actions"""
         if self.comm.rank == 0:
-            self._report_noiseless(fit, info)
+            self._report_noiseless(fit, info, noiseless_policy)
 
-    def end_gen(self, time: float, policy: Policy):
+    def end_gen(self, time: float):
         if self.comm.rank == 0:
-            self._end_gen(time, policy)
+            self._end_gen(time)
 
     @abstractmethod
-    def _start_gen(self, gen: int):
+    def _start_gen(self):
         pass
 
     @abstractmethod
@@ -61,28 +61,28 @@ class MPIReporter(Reporter, ABC):
         pass
 
     @abstractmethod
-    def _report_noiseless(self, fit: float, info: dict):
+    def _report_noiseless(self, fit: float, info: dict, noiseless_policy: Policy):
         """Reports the fitness of a evaluation using no noise from the table and noiseless actions"""
         pass
 
     @abstractmethod
-    def _end_gen(self, time: float, noiseless_policy: Policy):
+    def _end_gen(self, time: float):
         pass
 
 
 class StdoutReporter(MPIReporter):
-    def _start_gen(self, gen: int):
-        print(f'Gen:{gen}')
+    def _start_gen(self):
+        pass
 
     def _report_fits(self, fits: np.ndarray):
         avg = np.mean(fits)
         mx = np.max(fits)
         print(f'avg:{avg:0.2f}-max:{mx:0.2f}')
 
-    def _report_noiseless(self, fit: float, info: dict):
+    def _report_noiseless(self, fit: float, info: dict, noiseless_policy: Policy):
         print(f'noiseless:{fit:0.2f}')
 
-    def _end_gen(self, time: float, noiseless_policy: Policy):
+    def _end_gen(self, time: float):
         print(f'time {time:0.2f}')
 
 
@@ -99,24 +99,33 @@ class LoggerReporter(MPIReporter):
             logging.basicConfig(filename=f'logs/{log_name}.log', level=logging.DEBUG)
             logging.info('initialized logger')
 
-    def _start_gen(self, gen: int):
-        logging.info(f'gen:{gen}')
-        self.gen = gen
+            self.best_rew = 0
+
+    def _start_gen(self):
+        logging.info(f'gen:{self.gen}')
 
     def _report_fits(self, fits: np.ndarray):
         logging.info(f'avg:{np.mean(fits):0.2f}')
         logging.info(f'max:{np.max(fits):0.2f}')
 
-    def _report_noiseless(self, fit: float, info: dict):
+    def _report_noiseless(self, fit: float, info: dict, noiseless_policy: Policy):
+        import main
+
         logging.info(f'noiseless fit:{fit:0.2f}')
-        for k, v in info.items():
-            logging.info(f'noiseless {k}: {v}')
+        if main.REWARD in info:
+            logging.info(f'rew: {info[main.REWARD]}')
+            if info[main.REWARD] > self.best_rew:
+                self.best_rew = info[main.REWARD]
+                folder = f'saved/{self.cfg.general.name}'
+                if not os.path.exists(folder):
+                    os.makedirs(folder)
+                pickle.dump(noiseless_policy, open(f'{folder}/policy-{self.gen}', 'wb'))
 
-    def _end_gen(self, time: float, noiseless_policy: Policy):
+        if main.BEHAVIOUR in info:
+            # Calculating distance traveled (ignoring height dim). Assumes starting at 0, 0
+            dist = np.linalg.norm(np.array(info[main.BEHAVIOUR][-2:]))
+            logging.info(f'dist: {dist}')
+
+    def _end_gen(self, time: float):
         logging.info(f'time:{time:0.2f}')
-
-        if self.gen % self.cfg.general.save_interval == 0 and self.cfg.general.save_interval > 0:  # checkpoints
-            folder = f'saved/{self.cfg.general.name}'
-            if not os.path.exists(folder):
-                os.makedirs(folder)
-            pickle.dump(noiseless_policy, open(f'{folder}/policy-{self.gen}', 'wb'))
+        self.gen += 1
