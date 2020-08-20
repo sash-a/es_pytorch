@@ -37,7 +37,7 @@ if __name__ == '__main__':
     env: gym.Env = gym.make(cfg.env.name)
     reporter = LoggerReporter(comm, cfg, cfg.general.name)
 
-    archive = []
+    archive = None
     policy_fits = []
     best_rew = 0
 
@@ -64,9 +64,7 @@ if __name__ == '__main__':
 
     for policy in population:
         _, info = r_fn(policy.pheno(np.zeros(len(policy))), env, cfg.env.max_steps, rs)
-        archive.append(info[BEHAVIOUR])
-
-    archive = np.array(archive)
+        archive = update_archive(comm, info[BEHAVIOUR], archive)
 
     for behaviour in archive:
         policy_fits.append(novelty(np.array([behaviour]), archive, cfg.novelty.n))
