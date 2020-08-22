@@ -34,7 +34,7 @@
   },
 
   "novelty": {
-    "n": 10,
+    "k": 10,
     "thresh": 2,
     "archive_size": -1
   }

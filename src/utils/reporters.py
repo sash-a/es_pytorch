@@ -10,6 +10,7 @@ import numpy as np
 from mpi4py import MPI
 
 from es.policy import Policy
+from utils.TrainingResult import TrainingResult
 
 
 class Reporter(ABC):
@@ -22,7 +23,7 @@ class Reporter(ABC):
         pass
 
     @abstractmethod
-    def report_noiseless(self, fit: float, info: dict, noiseless_policy: Policy):
+    def report_noiseless(self, tr: TrainingResult, noiseless_policy: Policy):
         """Reports the fitness of a evaluation using no noise from the table and noiseless actions"""
         pass
 
@@ -43,10 +44,10 @@ class MPIReporter(Reporter, ABC):
         if self.comm.rank == 0:
             self._report_fits(fits)
 
-    def report_noiseless(self, fit: float, info: dict, noiseless_policy: Policy):
+    def report_noiseless(self, tr: TrainingResult, noiseless_policy: Policy):
         """Reports the fitness of a evaluation using no noise from the table and noiseless actions"""
         if self.comm.rank == 0:
-            self._report_noiseless(fit, info, noiseless_policy)
+            self._report_noiseless(tr, noiseless_policy)
 
     def end_gen(self, time: float):
         if self.comm.rank == 0:
@@ -61,7 +62,7 @@ class MPIReporter(Reporter, ABC):
         pass
 
     @abstractmethod
-    def _report_noiseless(self, fit: float, info: dict, noiseless_policy: Policy):
+    def _report_noiseless(self, tr: TrainingResult, noiseless_policy: Policy):
         """Reports the fitness of a evaluation using no noise from the table and noiseless actions"""
         pass
 
@@ -79,8 +80,8 @@ class StdoutReporter(MPIReporter):
         mx = np.max(fits)
         print(f'avg:{avg:0.2f}-max:{mx:0.2f}')
 
-    def _report_noiseless(self, fit: float, info: dict, noiseless_policy: Policy):
-        print(f'noiseless:{fit:0.2f}')
+    def _report_noiseless(self, tr: TrainingResult, noiseless_policy: Policy):
+        print(f'noiseless:{tr.result[0]:0.2f}')
 
     def _end_gen(self, time: float):
         print(f'time {time:0.2f}')
@@ -108,23 +109,24 @@ class LoggerReporter(MPIReporter):
         logging.info(f'avg:{np.mean(fits):0.2f}')
         logging.info(f'max:{np.max(fits):0.2f}')
 
-    def _report_noiseless(self, fit: float, info: dict, noiseless_policy: Policy):
-        import main
+    def _report_noiseless(self, tr: TrainingResult, noiseless_policy: Policy):
 
-        logging.info(f'noiseless fit:{fit:0.2f}')
-        if main.REWARD in info:
-            logging.info(f'rew: {info[main.REWARD]}')
-            if info[main.REWARD] > self.best_rew:
-                self.best_rew = info[main.REWARD]
-                folder = f'saved/{self.cfg.general.name}'
-                if not os.path.exists(folder):
-                    os.makedirs(folder)
-                pickle.dump(noiseless_policy, open(f'{folder}/policy-{self.gen}', 'wb'))
+        logging.info(f'noiseless fit:{tr.result[0]:0.2f}')
+        # Calculating distance traveled (ignoring height dim). Assumes starting at 0, 0
+        print(tr.behaviour[-3:], np.linalg.norm(np.array(tr.behaviour[-3:-1])))
 
-        if main.BEHAVIOUR in info:
-            # Calculating distance traveled (ignoring height dim). Assumes starting at 0, 0
-            dist = np.linalg.norm(np.array(info[main.BEHAVIOUR][-2:]))
-            logging.info(f'dist: {dist}')
+        dist = np.linalg.norm(np.array(tr.behaviour[-3:-1]))
+        rew = np.sum(tr.rewards)
+
+        logging.info(f'dist: {dist}')
+        logging.info(f'rew: {rew}')
+
+        if rew > self.best_rew:
+            self.best_rew = rew
+            folder = f'saved/{self.cfg.general.name}'
+            if not os.path.exists(folder):
+                os.makedirs(folder)
+            pickle.dump(noiseless_policy, open(f'{folder}/policy-{self.gen}', 'wb'))
 
     def _end_gen(self, time: float):
         logging.info(f'time:{time:0.2f}')

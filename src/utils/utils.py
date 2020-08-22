@@ -49,7 +49,7 @@ def percent_fitness(fits: np.ndarray):
     return fits / sum(fits)
 
 
-def compute_ranks(x):
+def compute_ranks(x: np.ndarray):
     """
     Returns ranks in [0, len(x))
     Note: This is different from scipy.stats.rankdata, which returns ranks in [1, len(x)].
@@ -60,11 +60,19 @@ def compute_ranks(x):
     return ranks
 
 
-def compute_centered_ranks(x):
+def compute_centered_ranks(x: np.ndarray):
     y = compute_ranks(x.ravel()).reshape(x.shape).astype(np.float32)
     y /= (x.size - 1)
     y -= .5
     return y
+
+
+def moo_rank(x: np.ndarray, rank_fn):
+    ranked = []
+    for col in x.T:
+        ranked.append(rank_fn(col))
+
+    return np.mean(ranked, axis=0)
 
 
 def parse_args():
