@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Iterable, Sequence
+from typing import Sequence
 
 import numpy as np
 
@@ -12,10 +12,10 @@ class TrainingResult(ABC):
         self.behaviour: Sequence[float] = behaviour
 
     @abstractmethod
-    def get_result(self) -> Iterable[float]:
+    def get_result(self) -> Sequence[float]:
         pass
 
-    result: Iterable[float] = property(lambda self: self.get_result())
+    result: Sequence[float] = property(lambda self: self.get_result())
 
 
 class RewardResult(TrainingResult):
@@ -31,7 +31,7 @@ class DistResult(TrainingResult):
         super().__init__(rewards, behaviour)
 
     def get_result(self):
-        return [np.linalg.norm(self.behaviour[-3])]
+        return [np.linalg.norm(self.behaviour[-3:-1])]
 
 
 class NSResult(TrainingResult):

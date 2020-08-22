@@ -12,7 +12,7 @@ from es.noisetable import NoiseTable
 from es.optimizers import Adam, Optimizer
 from es.policy import Policy
 from utils import utils, gym_runner
-from utils.TrainingResult import TrainingResult, RewardResult, NSRResult
+from utils.TrainingResult import TrainingResult, NSRResult, DistResult
 from utils.nn import FullyConnected
 from utils.novelty import novelty, update_archive
 from utils.reporters import LoggerReporter
@@ -55,8 +55,8 @@ if __name__ == '__main__':
     # objective fitness function
     def r_fn(model: torch.nn.Module, e: gym.Env, max_steps: int, r: np.random.RandomState = None) -> TrainingResult:
         rews, behv = gym_runner.run_model(model, e, max_steps, r)
-        return RewardResult(rews, behv)
-        # return behv[-1]
+        return DistResult(rews, behv)
+        # return RewardResultResult(rews, behv)
 
 
     for policy in population:
