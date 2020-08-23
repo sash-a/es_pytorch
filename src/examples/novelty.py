@@ -12,14 +12,11 @@ from es.noisetable import NoiseTable
 from es.optimizers import Adam, Optimizer
 from es.policy import Policy
 from utils import utils, gym_runner
-from utils.TrainingResult import TrainingResult, NSRResult, DistResult
+from utils.TrainingResult import TrainingResult, NSRResult
 from utils.nn import FullyConnected
 from utils.novelty import novelty, update_archive
 from utils.reporters import LoggerReporter
-from utils.utils import moo_rank, compute_centered_ranks
-
-BEHAVIOUR = 'behaviour'
-REWARD = 'reward'
+from utils.utils import moo_mean_rank, compute_centered_ranks
 
 if __name__ == '__main__':
     comm: MPI.Comm = MPI.COMM_WORLD
@@ -43,22 +40,15 @@ if __name__ == '__main__':
 
     archive = None
     policy_fits = []
-    best_rew = 0
 
-    rank_fn = partial(moo_rank, rank_fn=compute_centered_ranks)
+    rank_fn = partial(moo_mean_rank, rank_fn=compute_centered_ranks)
 
-    # novelty search fitness function
+
     def ns_fn(model: torch.nn.Module, e: gym.Env, max_steps: int, r: np.random.RandomState = None) -> TrainingResult:
         rews, behv = gym_runner.run_model(model, e, max_steps, r)
         return NSRResult(rews, behv, archive, cfg.novelty.k)
 
-    # objective fitness function
-    def r_fn(model: torch.nn.Module, e: gym.Env, max_steps: int, r: np.random.RandomState = None) -> TrainingResult:
-        rews, behv = gym_runner.run_model(model, e, max_steps, r)
-        return DistResult(rews, behv)
-        # return RewardResultResult(rews, behv)
-
-
+    # initializing the archive
     for policy in population:
         _, behaviour = gym_runner.run_model(policy.pheno(np.zeros(len(policy))), env, cfg.env.max_steps, rs)
         archive = update_archive(comm, behaviour, archive)
@@ -67,9 +57,11 @@ if __name__ == '__main__':
         policy_fits.append(novelty(np.array([behaviour]), archive, cfg.novelty.k))
 
     for gen in range(cfg.general.gens):
-        idx = random.choices(list(range(cfg.general.n_policies)), weights=policy_fits, k=1)[0]
+        # picking the policy from the population
+        idx = random.choices(list(range(len(policy_fits))), weights=policy_fits, k=1)[0]
         idx = comm.scatter([idx] * comm.size)
+        # running es
         tr = es.step(cfg, comm, population[idx], optims[idx], nt, env, ns_fn, rs, rank_fn, reporter)
-
+        # adding new behaviour and sharing archive
         archive = update_archive(comm, tr.behaviour, archive)
         policy_fits[idx] = max(policy_fits[idx], np.sum(tr.rewards))

@@ -5,10 +5,10 @@ from es.policy import Policy
 from utils.gym_runner import run_model
 
 
-def run_saved(policy_path: str, env, steps, ):
+def run_saved(policy_path: str, env: gym.Env, steps: int):
     p = Policy.load(policy_path)
     r, d = run_model(p.pheno(np.zeros(len(p))), env, steps, render=True)
-    print(f'\n\nrewards {sum(r)}\ndist {np.linalg.norm(np.array(d[:3]) - np.array(d[-3:]))}\n\n')
+    print(f'\n\nrewards {sum(r)}\ndist {np.linalg.norm(np.array(d[-3:-1]))}\n\n')
 
 
 if __name__ == '__main__':
@@ -16,5 +16,5 @@ if __name__ == '__main__':
     import pybullet_envs
 
     e = gym.make('AntBulletEnv-v0', render=True).unwrapped
-    run_saved('../saved/ant_rew/policy-900', e, 2000)
+    run_saved('../../saved/ant_rew/policy-900', e, 2000)
     e.close()

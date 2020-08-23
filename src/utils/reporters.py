@@ -95,12 +95,13 @@ class LoggerReporter(MPIReporter):
             self.gen = 0
             self.cfg = cfg
 
+            self.best_rew = 0
+            self.best_dist = 0
+
             if log_name is None:
                 log_name = datetime.now().strftime('es__%d_%m_%y__%H_%M_%S')
             logging.basicConfig(filename=f'logs/{log_name}.log', level=logging.DEBUG)
             logging.info('initialized logger')
-
-            self.best_rew = 0
 
     def _start_gen(self):
         logging.info(f'gen:{self.gen}')
@@ -111,18 +112,17 @@ class LoggerReporter(MPIReporter):
 
     def _report_noiseless(self, tr: TrainingResult, noiseless_policy: Policy):
 
-        logging.info(f'noiseless fit:{tr.result[0]:0.2f}')
+        logging.info(f'noiseless fit:{tr.result}')
         # Calculating distance traveled (ignoring height dim). Assumes starting at 0, 0
-        print(tr.behaviour[-3:], np.linalg.norm(np.array(tr.behaviour[-3:-1])))
-
         dist = np.linalg.norm(np.array(tr.behaviour[-3:-1]))
         rew = np.sum(tr.rewards)
 
         logging.info(f'dist: {dist}')
         logging.info(f'rew: {rew}')
 
-        if rew > self.best_rew:
-            self.best_rew = rew
+        if rew > self.best_rew or dist > self.best_dist:
+            self.best_rew = max(rew, self.best_rew)
+            self.best_dist = max(dist, self.best_dist)
             folder = f'saved/{self.cfg.general.name}'
             if not os.path.exists(folder):
                 os.makedirs(folder)

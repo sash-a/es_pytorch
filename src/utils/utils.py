@@ -67,7 +67,15 @@ def compute_centered_ranks(x: np.ndarray):
     return y
 
 
-def moo_rank(x: np.ndarray, rank_fn):
+def moo_mean_rank(x: np.ndarray, rank_fn):
+    """
+    Wrapper for rank functions to work on multi-objective fitness. Returns the mean of the ranked objectives for each
+     individual.
+
+    x: [[obj1, obj2,...]  - individual 1
+        [obj1, obj2,...], - individual 2
+        ... ]             - individual n
+    """
     ranked = []
     for col in x.T:
         ranked.append(rank_fn(col))

@@ -8,8 +8,8 @@ from scipy.spatial import distance
 
 def update_archive(comm: MPI.Comm, behaviour: Sequence[float], archive: np.ndarray) -> np.ndarray:
     size = len(behaviour)
-    rcv_buff = np.zeros(size, dtype=np.float_)
-    comm.Scatter((np.array(behaviour, dtype=np.float_), size, MPI.FLOAT), (rcv_buff, size, MPI.FLOAT))
+    rcv_buff = np.zeros(size, dtype=np.float)
+    comm.Scatter((np.array(behaviour, dtype=np.float), size, MPI.FLOAT), (rcv_buff, size, MPI.FLOAT))
     if archive is None:
         return np.array([rcv_buff])
     return np.concatenate((archive, [rcv_buff]))

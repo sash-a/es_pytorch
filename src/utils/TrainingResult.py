@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Sequence
+from typing import Sequence, List
 
 import numpy as np
 
@@ -22,7 +22,7 @@ class RewardResult(TrainingResult):
     def __init__(self, rewards: Sequence[float], behaviour: Sequence[float]):
         super().__init__(rewards, behaviour)
 
-    def get_result(self):
+    def get_result(self) -> List[float]:
         return [sum(self.rewards)]
 
 
@@ -30,8 +30,13 @@ class DistResult(TrainingResult):
     def __init__(self, rewards: Sequence[float], behaviour: Sequence[float]):
         super().__init__(rewards, behaviour)
 
-    def get_result(self):
+    def get_result(self) -> List[float]:
         return [np.linalg.norm(self.behaviour[-3:-1])]
+
+
+class XDistResult(DistResult):
+    def get_result(self) -> List[float]:
+        return [self.behaviour[-3]]
 
 
 class NSResult(TrainingResult):
@@ -40,7 +45,7 @@ class NSResult(TrainingResult):
         self.archive = archive
         self.k = k
 
-    def get_result(self):
+    def get_result(self) -> List[float]:
         return [novelty(np.array([self.behaviour]), self.archive, self.k)]
 
 
@@ -48,5 +53,5 @@ class NSRResult(NSResult):
     def __init__(self, rewards: Sequence[float], behaviour: Sequence[float], archive: np.ndarray, k: int):
         super().__init__(rewards, behaviour, archive, k)
 
-    def get_result(self):
+    def get_result(self) -> List[float]:
         return [sum(self.rewards), super().get_result()[0]]
