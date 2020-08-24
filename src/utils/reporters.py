@@ -9,8 +9,8 @@ from datetime import datetime
 import numpy as np
 from mpi4py import MPI
 
-from es.policy import Policy
-from utils.TrainingResult import TrainingResult
+from src.es.policy import Policy
+from src.utils.TrainingResult import TrainingResult
 
 
 class Reporter(ABC):

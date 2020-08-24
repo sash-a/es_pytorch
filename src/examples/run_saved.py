@@ -1,8 +1,8 @@
 import gym
 import numpy as np
 
-from es.policy import Policy
-from utils.gym_runner import run_model
+from src.es.policy import Policy
+from src.utils.gym_runner import run_model
 
 
 def run_saved(policy_path: str, env: gym.Env, steps: int):

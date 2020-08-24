@@ -4,7 +4,7 @@ from collections import namedtuple
 
 import numpy as np
 
-from es.noisetable import NoiseTable
+from src.es.noisetable import NoiseTable
 
 
 def batch_noise(inds: np.ndarray, nt: NoiseTable, batch_size: int):

@@ -6,15 +6,15 @@ import torch
 from mpi4py import MPI
 
 import es.es_runner as es
-from es.noisetable import NoiseTable
-from es.optimizers import Adam, Optimizer
-from es.policy import Policy
-from utils import utils, gym_runner
+from src.es.noisetable import NoiseTable
+from src.es.optimizers import Adam, Optimizer
+from src.es.policy import Policy
 # noinspection PyUnresolvedReferences
-from utils.TrainingResult import TrainingResult, DistResult, XDistResult, RewardResult
-from utils.nn import FullyConnected
-from utils.reporters import LoggerReporter
-from utils.utils import moo_mean_rank, compute_centered_ranks
+from src.utils.TrainingResult import TrainingResult, DistResult, XDistResult, RewardResult
+from src.utils.nn import FullyConnected
+from src.utils.reporters import LoggerReporter
+from src.utils.utils import moo_mean_rank, compute_centered_ranks
+from utils import utils, gym_runner
 
 if __name__ == '__main__':
     comm: MPI.Comm = MPI.COMM_WORLD

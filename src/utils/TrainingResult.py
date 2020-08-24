@@ -3,7 +3,7 @@ from typing import Sequence, List
 
 import numpy as np
 
-from utils.novelty import novelty
+from src.utils.novelty import novelty
 
 
 class TrainingResult(ABC):
