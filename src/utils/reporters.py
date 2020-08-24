@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 import logging
-import os
-import pickle
 from abc import ABC, abstractmethod
 from datetime import datetime
 
@@ -123,10 +121,7 @@ class LoggerReporter(MPIReporter):
         if rew > self.best_rew or dist > self.best_dist:
             self.best_rew = max(rew, self.best_rew)
             self.best_dist = max(dist, self.best_dist)
-            folder = f'saved/{self.cfg.general.name}'
-            if not os.path.exists(folder):
-                os.makedirs(folder)
-            pickle.dump(noiseless_policy, open(f'{folder}/policy-{self.gen}', 'wb'))
+            noiseless_policy.save(f'saved/{self.cfg.general.name}', str(self.gen))
 
     def _end_gen(self, time: float):
         logging.info(f'time:{time:0.2f}')

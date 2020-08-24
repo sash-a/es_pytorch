@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import pickle
 
 import numpy as np
@@ -26,6 +27,11 @@ class Policy(torch.nn.Module):
         policy: Policy = pickle.load(open(file, 'rb'))
         policy.set_nn_params(policy.flat_params)
         return policy
+
+    def save(self, folder: str, suffix: str):
+        if not os.path.exists(folder):
+            os.makedirs(folder)
+        pickle.dump(self, open(f'{folder}/policy-{suffix}', 'wb'))
 
     def set_nn_params(self, params: np.ndarray) -> torch.nn.Module:
         with torch.no_grad():
