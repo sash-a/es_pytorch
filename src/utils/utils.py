@@ -9,7 +9,7 @@ from src.es.noisetable import NoiseTable
 
 def batch_noise(inds: np.ndarray, nt: NoiseTable, batch_size: int):
     """
-    Need to batch noise otherwise will have to `dot` array with shape (cfg.eps_per_gen, len(params)) or +-(5000, 136451)
+    Need to batch noise otherwise will have to `dot` a large array
     """
     assert inds.ndim == 1
 

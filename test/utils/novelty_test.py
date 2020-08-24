@@ -1,15 +1,9 @@
 # Very informal test to make sure that parallelism is working
 import numpy as np
-import pytest
 
-from src.utils.novelty import update_archive
-
-
-@pytest.fixture
-def comm():
-    from mpi4py import MPI
-
-    return MPI.COMM_WORLD
+from src.utils.novelty import update_archive, novelty
+# noinspection PyUnresolvedReferences
+from test import comm
 
 
 def test_update_archive(comm):
@@ -28,3 +22,12 @@ def test_update_archive(comm):
 
     archive = update_archive(comm, beh, archive)
     assert (archive == np.array([[1., 2., 3.], [10., 20., 30.]])).all()
+
+
+def test_novelty():
+    beh = np.array([0, 0])
+    archive = np.array([[2, 2], [1, 1], [3, 3]])
+    assert novelty(beh, archive, 1) == 2
+    assert novelty(beh, archive, 2) == 10
+    assert novelty(beh, archive, 3) == 28
+    assert novelty(beh, archive, 50) == 28

@@ -17,7 +17,7 @@ def create_shared_arr(comm: MPI.Comm, size: int) -> np.ndarray:
 
     # create a numpy array whose data points to the shared mem
     buf, itemsize = win.Shared_query(0)
-    return np.ndarray(buffer=buf, dtype='d', shape=(size,))
+    return np.ndarray(buffer=buf, dtype=np.float64, shape=(size,))
 
 
 class NoiseTable:

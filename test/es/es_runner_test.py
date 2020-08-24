@@ -1,47 +1,31 @@
 # Very informal test to make sure that parallelism is working
 
 import numpy as np
-import pytest
 
 from src.es.es_runner import _share_results
-
-
-@pytest.fixture
-def comm():
-    from mpi4py import MPI
-
-    return MPI.COMM_WORLD
+# noinspection PyUnresolvedReferences
+from test import comm
 
 
 def test__share_results(comm):
-    assert comm.size == 2
-    if comm.rank == 0:
-        inds = [10, 20, 30]
-        fits_pos = [[1., 1.], [2., 2.], [3., 3.]]
-        fits_neg = [[-1., -1.], [-2., -2.], [-3., -3.]]
-    else:
-        inds = [40, 50, 60]
-        fits_pos = [[4., 4.], [5., 5.], [6., 6.]]
-        fits_neg = [[-4., -4.], [-5., -5.], [-6., -6.]]
+    evals = 5
+    objectives = 4
+    proc_factor = evals * comm.rank + 1
+
+    inds = (np.arange(evals) + proc_factor) * 10
+
+    fits_pos = [
+        [i + i * 10 ** j if j != 0 else i for j in range(objectives)] for i in range(proc_factor, proc_factor + evals)
+    ]
+    fits_neg = (-np.array(fits_pos)).tolist()
 
     results = _share_results(comm, fits_pos, fits_neg, inds)
 
-    expected = np.array([[1., 1., -1., -1., 10.],
-                         [2., 2., -2., -2., 20.],
-                         [3., 3., -3., -3., 30.],
-                         [4., 4., -4., -4., 40.],
-                         [5., 5., -5., -5., 50.],
-                         [6., 6., -6., -6., 60.]])
+    expected = []
+    for i in range(1, evals * comm.size + 1):
+        pos = [i + i * 10 ** j if j != 0 else i for j in range(objectives)]
+        neg = (-np.array(pos)).tolist()
+        res = pos + neg + [i * 10]
+        expected.append(res)
 
     assert (results == expected).all()
-    # objectives = 2
-    # pos = results[:, 0:objectives]
-    # neg = results[:, objectives:2 * objectives]
-    # inds = results[:, -1]
-
-
-if __name__ == '__main__':
-    comm = MPI.COMM_WORLD
-    test__share_results(comm)
-
-    print('all tests passed')

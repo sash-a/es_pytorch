@@ -54,7 +54,7 @@ if __name__ == '__main__':
         archive = update_archive(comm, behaviour, archive)
 
     for behaviour in archive:
-        policy_fits.append(novelty(np.array([behaviour]), archive, cfg.novelty.k))
+        policy_fits.append(novelty(behaviour, archive, cfg.novelty.k))
 
     for gen in range(cfg.general.gens):
         # picking the policy from the population
