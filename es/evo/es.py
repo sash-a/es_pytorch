@@ -12,12 +12,12 @@ from mpi4py import MPI
 from numpy.random import RandomState
 from torch.nn import Module
 
-from src.es.noisetable import NoiseTable
-from src.es.optimizers import Optimizer
-from src.es.policy import Policy
-from src.utils.TrainingResult import TrainingResult
-from src.utils.reporters import StdoutReporter, Reporter
-from src.utils.utils import scale_noise, compute_centered_ranks
+from es.evo.noisetable import NoiseTable
+from es.evo.policy import Policy
+from es.nn.optimizers import Optimizer
+from es.utils.TrainingResult import TrainingResult
+from es.utils.reporters import StdoutReporter, Reporter
+from es.utils.utils import scale_noise, compute_centered_ranks
 
 
 # noinspection PyIncorrectDocstring

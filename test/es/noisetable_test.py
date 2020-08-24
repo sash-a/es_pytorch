@@ -1,6 +1,6 @@
 import numpy as np
 
-from src.es.noisetable import create_shared_arr, NoiseTable
+from es.evo.noisetable import create_shared_arr, NoiseTable
 # noinspection PyUnresolvedReferences
 from test import comm
 

@@ -7,16 +7,16 @@ import numpy as np
 import torch
 from mpi4py import MPI
 
-import src.es.es_runner as es
-from src.es.noisetable import NoiseTable
-from src.es.optimizers import Adam, Optimizer
-from src.es.policy import Policy
-from src.utils.TrainingResult import TrainingResult, NSRResult
-from src.utils.nn import FullyConnected
-from src.utils.novelty import novelty, update_archive
-from src.utils.reporters import LoggerReporter
-from src.utils.utils import moo_mean_rank, compute_centered_ranks
-from utils import utils, gym_runner
+import es.evo.es as es
+from es.evo.noisetable import NoiseTable
+from es.evo.policy import Policy
+from es.nn.nn import FullyConnected
+from es.nn.optimizers import Adam, Optimizer
+from es.utils import utils, gym_runner
+from es.utils.TrainingResult import TrainingResult, NSRResult
+from es.utils.novelty import novelty, update_archive
+from es.utils.reporters import LoggerReporter
+from es.utils.utils import moo_mean_rank, compute_centered_ranks
 
 if __name__ == '__main__':
     comm: MPI.Comm = MPI.COMM_WORLD

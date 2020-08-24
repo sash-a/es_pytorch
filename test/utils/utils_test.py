@@ -1,7 +1,7 @@
 import numpy as np
 
-from src.es.noisetable import NoiseTable
-from src.utils.utils import batch_noise, scale_noise, moo_mean_rank, percent_rank
+from es.evo.noisetable import NoiseTable
+from es.utils.utils import batch_noise, scale_noise, moo_mean_rank, percent_rank
 
 
 def test_batch_noise():

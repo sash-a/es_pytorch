@@ -1,8 +1,8 @@
 import gym
 import numpy as np
 
-from src.es.policy import Policy
-from src.utils.gym_runner import run_model
+from es.evo.policy import Policy
+from es.utils.gym_runner import run_model
 
 
 def run_saved(policy_path: str, env: gym.Env, steps: int):
@@ -16,5 +16,5 @@ if __name__ == '__main__':
     import pybullet_envs
 
     e = gym.make('AntBulletEnv-v0', render=True).unwrapped
-    run_saved('../../saved/ant_rew/policy-900', e, 2000)
+    run_saved('saved/ant_rew/policy-900', e, 2000)
     e.close()
