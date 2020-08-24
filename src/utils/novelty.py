@@ -1,18 +1,16 @@
 import heapq
-from typing import Sequence
+from typing import Sequence, Optional
 
 import numpy as np
 from mpi4py import MPI
 from scipy.spatial import distance
 
 
-def update_archive(comm: MPI.Comm, behaviour: Sequence[float], archive: np.ndarray) -> np.ndarray:
-    size = len(behaviour)
-    rcv_buff = np.zeros(size, dtype=np.float)
-    comm.Scatter((np.array(behaviour, dtype=np.float), size, MPI.FLOAT), (rcv_buff, size, MPI.FLOAT))
+def update_archive(comm: MPI.Comm, behaviour: Sequence[float], archive: Optional[np.ndarray]) -> np.ndarray:
+    behaviour = comm.scatter([behaviour] * comm.size)
     if archive is None:
-        return np.array([rcv_buff])
-    return np.concatenate((archive, [rcv_buff]))
+        return np.array([behaviour])
+    return np.concatenate((archive, [behaviour]))
 
 
 def novelty(behaviour: np.ndarray, archive: np.ndarray, n: int) -> float:
