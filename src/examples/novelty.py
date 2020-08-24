@@ -7,7 +7,7 @@ import numpy as np
 import torch
 from mpi4py import MPI
 
-import es.es_runner as es
+import src.es.es_runner as es
 from src.es.noisetable import NoiseTable
 from src.es.optimizers import Adam, Optimizer
 from src.es.policy import Policy
