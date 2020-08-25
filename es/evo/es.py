@@ -9,6 +9,7 @@ import numpy as np
 # noinspection PyUnresolvedReferences
 import pybullet_envs
 from mpi4py import MPI
+from numpy import ndarray
 from numpy.random import RandomState
 from torch.nn import Module
 
@@ -29,13 +30,13 @@ def step(cfg,
          env: gym.Env,
          fit_fn: Callable[[Module, gym.Env, int, RandomState], TrainingResult],
          rs: RandomState = np.random.RandomState(),
-         rank_fn: Callable[[Sequence[np.ndarray]], np.ndarray] = compute_centered_ranks,
+         rank_fn: Callable[[Sequence[ndarray]], ndarray] = compute_centered_ranks,
          reporter: Reporter = StdoutReporter(MPI.COMM_WORLD)) -> TrainingResult:
     """
     Runs a single generation of ES
-    :param fit_fn: Evaluates the policy, TrainingResult
-    :param rank_fn: Takes in fitnesses from all agents and returns those fitnesses ranked. Can be multi-objective
-    :returns: fit_fn of the noiseless policy at that generation
+    :param fit_fn: Evaluates the policy returns a TrainingResult
+    :param rank_fn: Takes in fitnesses from all agents and returns those fitnesses ranked. Must be multi-objective.
+    :returns: TrainingResult of the noiseless policy at that generation
     """
     assert cfg.general.eps_per_gen % comm.size == 0 and (cfg.general.eps_per_gen / comm.size) % 2 == 0
     eps_per_proc = int((cfg.general.eps_per_gen / comm.size) / 2)
@@ -55,16 +56,17 @@ def step(cfg,
 
     results = _share_results(comm, fits_pos, fits_neg, inds)
     # subtracting rewards that used negative noise
-    results = results[:, 0:objectives] - results[:, objectives:2 * objectives]
+    fits = results[:, 0:objectives] - results[:, objectives:2 * objectives]
+    noise_inds = results[:, -1]
 
-    _approx_grad(results, nt, policy.flat_params, optim, rank_fn, cfg)
+    _approx_grad(fits, noise_inds, nt, policy.flat_params, optim, rank_fn, cfg)
     noiseless_result = eval_one(policy, np.zeros(len(policy)), fit_fn, env, cfg.env.max_steps, None)
     _report(reporter, results, policy, noiseless_result, gen_start)
 
     return noiseless_result
 
 
-def eval_one(policy: Policy, noise: np.ndarray, fit_fn, env: gym.Env, steps: int, rs) -> TrainingResult:
+def eval_one(policy: Policy, noise: ndarray, fit_fn, env: gym.Env, steps: int, rs) -> TrainingResult:
     net = policy.pheno(noise)
     return fit_fn(net, env, steps, rs)
 
@@ -72,7 +74,7 @@ def eval_one(policy: Policy, noise: np.ndarray, fit_fn, env: gym.Env, steps: int
 def _share_results(comm: MPI.Comm,
                    fits_pos: List[List[float]],
                    fits_neg: List[List[float]],
-                   inds: List[int]) -> np.ndarray:
+                   inds: List[int]) -> ndarray:
     """share results and noise inds to all processes"""
     send_results = np.array([fp + fn + [i] for fp, fn, i in zip(fits_pos, fits_neg, inds)] * comm.size, dtype=np.float)
     results = np.empty(send_results.shape)
@@ -82,15 +84,14 @@ def _share_results(comm: MPI.Comm,
     return results.reshape((-1, 1 + 2 * objectives))  # flattening the process dim
 
 
-def _approx_grad(results: np.ndarray, nt: NoiseTable, flat_params: np.ndarray, optim: Optimizer, rank_fn, cfg):
+def _approx_grad(fits: ndarray, inds: ndarray, nt: NoiseTable, flat_params: ndarray, optim: Optimizer, rank_fn, cfg):
     """approximating gradient and update policy params"""
-    fits = rank_fn(results)
-    noise_inds = results[:, -1]
-    grad = scale_noise(fits, noise_inds, nt, cfg.general.batch_size) / cfg.general.eps_per_gen
+    ranked_fits = rank_fn(fits)
+    grad = scale_noise(ranked_fits, inds, nt, cfg.general.batch_size) / cfg.general.eps_per_gen
     optim.step(cfg.general.l2coeff * flat_params - grad)
 
 
-def _report(rep: Reporter, res: np.ndarray, policy: Policy, noiseless_result: TrainingResult, start: float):
+def _report(rep: Reporter, res: ndarray, policy: Policy, noiseless_result: TrainingResult, start: float):
     rep.report_noiseless(noiseless_result, policy)
     rep.report_fits(res[:, :-1])
     rep.end_gen(time.time() - start)
