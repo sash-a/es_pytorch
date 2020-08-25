@@ -63,5 +63,5 @@ if __name__ == '__main__':
         # running es
         tr = es.step(cfg, comm, population[idx], optims[idx], nt, env, ns_fn, rs, rank_fn, reporter)
         # adding new behaviour and sharing archive
-        archive = update_archive(comm, tr.behaviour, archive)
+        archive = update_archive(comm, tr.behaviour[-3:], archive)
         policy_fits[idx] = max(policy_fits[idx], np.sum(tr.rewards))
