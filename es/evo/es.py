@@ -84,7 +84,7 @@ def _share_results(comm: MPI.Comm,
 
 def _approx_grad(results: np.ndarray, nt: NoiseTable, flat_params: np.ndarray, optim: Optimizer, rank_fn, cfg):
     """approximating gradient and update policy params"""
-    fits = rank_fn()
+    fits = rank_fn(results)
     noise_inds = results[:, -1]
     grad = scale_noise(fits, noise_inds, nt, cfg.general.batch_size) / cfg.general.eps_per_gen
     optim.step(cfg.general.l2coeff * flat_params - grad)
