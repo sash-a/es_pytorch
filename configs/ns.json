@@ -16,10 +16,10 @@
   },
 
   "general": {
-    "name": "test",
+    "name": "hopper_ns",
 
     "gens": 100000,
-    "eps_per_gen": 10080,
+    "eps_per_gen": 960,
     "eps_per_policy": 1,
     "n_policies": 5,
 
