@@ -61,7 +61,7 @@ def step(cfg,
 
     _approx_grad(fits, noise_inds, nt, policy.flat_params, optim, rank_fn, cfg)
     noiseless_result = eval_one(policy, np.zeros(len(policy)), fit_fn, env, cfg.env.max_steps, None)
-    _report(reporter, results, policy, noiseless_result, gen_start)
+    _report(reporter, fits, policy, noiseless_result, gen_start)
 
     return noiseless_result
 
@@ -91,7 +91,7 @@ def _approx_grad(fits: ndarray, inds: ndarray, nt: NoiseTable, flat_params: ndar
     optim.step(cfg.general.l2coeff * flat_params - grad)
 
 
-def _report(rep: Reporter, res: ndarray, policy: Policy, noiseless_result: TrainingResult, start: float):
+def _report(rep: Reporter, fits: ndarray, policy: Policy, noiseless_result: TrainingResult, start: float):
     rep.report_noiseless(noiseless_result, policy)
-    rep.report_fits(res[:, :-1])
+    rep.report_fits(fits)
     rep.end_gen(time.time() - start)
