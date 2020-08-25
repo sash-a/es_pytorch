@@ -51,8 +51,13 @@ def step(cfg,
         fits_pos.append(eval_one(policy, noise, fit_fn, env, cfg.env.max_steps, rs).result)
         fits_neg.append(eval_one(policy, -noise, fit_fn, env, cfg.env.max_steps, rs).result)
 
+    objectives = len(fits_pos[0])
+
     results = _share_results(comm, fits_pos, fits_neg, inds)
-    _approx_grad(results, len(fits_pos[0]), nt, policy.flat_params, optim, rank_fn, cfg)
+    # subtracting rewards that used negative noise
+    results = results[:, 0:objectives] - results[:, objectives:2 * objectives]
+
+    _approx_grad(results, nt, policy.flat_params, optim, rank_fn, cfg)
     noiseless_result = eval_one(policy, np.zeros(len(policy)), fit_fn, env, cfg.env.max_steps, None)
     _report(reporter, results, policy, noiseless_result, gen_start)
 
@@ -77,16 +82,9 @@ def _share_results(comm: MPI.Comm,
     return results.reshape((-1, 1 + 2 * objectives))  # flattening the process dim
 
 
-def _approx_grad(results: np.ndarray,
-                 objectives: int,
-                 nt: NoiseTable,
-                 flat_params: np.ndarray,
-                 optim: Optimizer,
-                 rank_fn,
-                 cfg):
+def _approx_grad(results: np.ndarray, nt: NoiseTable, flat_params: np.ndarray, optim: Optimizer, rank_fn, cfg):
     """approximating gradient and update policy params"""
-    # subtracting rewards that used negative noise
-    fits = rank_fn(results[:, 0:objectives] - results[:, objectives:2 * objectives])
+    fits = rank_fn()
     noise_inds = results[:, -1]
     grad = scale_noise(fits, noise_inds, nt, cfg.general.batch_size) / cfg.general.eps_per_gen
     optim.step(cfg.general.l2coeff * flat_params - grad)
@@ -94,5 +92,5 @@ def _approx_grad(results: np.ndarray,
 
 def _report(rep: Reporter, res: np.ndarray, policy: Policy, noiseless_result: TrainingResult, start: float):
     rep.report_noiseless(noiseless_result, policy)
-    rep.report_fits(np.concatenate((res[:, 0], res[:, 1])))
+    rep.report_fits(res[:, :-1])
     rep.end_gen(time.time() - start)

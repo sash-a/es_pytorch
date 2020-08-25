@@ -105,12 +105,13 @@ class LoggerReporter(MPIReporter):
         logging.info(f'gen:{self.gen}')
 
     def _report_fits(self, fits: np.ndarray):
-        logging.info(f'avg:{np.mean(fits):0.2f}')
-        logging.info(f'max:{np.max(fits):0.2f}')
+        for i, col in enumerate(fits.T):
+            # Objectives are grouped by column so this finds the avg and max of each objective
+            logging.info(f'obj {i} avg:{np.mean(col):0.2f}')
+            logging.info(f'obj {i} max:{np.max(col):0.2f}')
 
     def _report_noiseless(self, tr: TrainingResult, noiseless_policy: Policy):
-
-        logging.info(f'noiseless fit:{tr.result}')
+        logging.info(f'fit:{tr.result}')
         # Calculating distance traveled (ignoring height dim). Assumes starting at 0, 0
         dist = np.linalg.norm(np.array(tr.behaviour[-3:-1]))
         rew = np.sum(tr.rewards)
