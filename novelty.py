@@ -51,10 +51,10 @@ if __name__ == '__main__':
     # initializing the archive
     for policy in population:
         _, behaviour = gym_runner.run_model(policy.pheno(np.zeros(len(policy))), env, cfg.env.max_steps, rs)
-        archive = update_archive(comm, behaviour, archive)
+        archive = update_archive(comm, behaviour[-3:], archive)
 
     for behaviour in archive:
-        policy_fits.append(novelty(behaviour, archive, cfg.novelty.k))
+        policy_fits.append(novelty(behaviour[-3:], archive, cfg.novelty.k))
 
     for gen in range(cfg.general.gens):
         # picking the policy from the population

@@ -46,7 +46,7 @@ class NSResult(TrainingResult):
         self.k = k
 
     def get_result(self) -> List[float]:
-        return [novelty(np.array(self.behaviour), self.archive, self.k)]
+        return [novelty(np.array(self.behaviour[-3:]), self.archive, self.k)]
 
 
 class NSRResult(NSResult):
