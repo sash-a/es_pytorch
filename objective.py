@@ -27,10 +27,12 @@ if __name__ == '__main__':
     rs = np.random.RandomState()  # this must not be seeded, otherwise all procs will use the same random noise
 
     # initializing policy, optimizer, noise and env
-    policy: Policy = Policy(FullyConnected(15, 3, 256, 2, torch.nn.Tanh, cfg.policy), cfg.noise.std)
+    env: gym.Env = gym.make(cfg.env.name)
+    policy: Policy = Policy(
+        FullyConnected(env.observation_space.shape[0], env.action_space.shape[0], 256, 2, torch.nn.Tanh, cfg.policy),
+        cfg.noise.std)
     optim: Optimizer = Adam(policy, cfg.general.lr)
     nt: NoiseTable = NoiseTable.create_shared(comm, cfg.noise.table_size, len(policy), cfg.noise.seed)
-    env: gym.Env = gym.make(cfg.env.name)
     reporter = LoggerReporter(comm, cfg, cfg.general.name)
 
     rank_fn = partial(moo_mean_rank, rank_fn=compute_centered_ranks)

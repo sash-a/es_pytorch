@@ -29,13 +29,13 @@ if __name__ == '__main__':
     rs = np.random.RandomState()  # this must not be seeded, otherwise all procs will use the same random noise
 
     # initializing population, optimizers, noise and env
+    env: gym.Env = gym.make(cfg.env.name)
     population: List[Policy] = [
-        Policy(FullyConnected(15, 3, 256, 2, torch.nn.Tanh, cfg.policy), cfg.noise.std) for _ in
-        range(cfg.general.n_policies)
+        Policy(FullyConnected(env.observation_space.shape[0], env.action_space.shape[0], 256, 2, torch.nn.Tanh,
+                              cfg.policy), cfg.noise.std) for _ in range(cfg.general.n_policies)
     ]
     optims: List[Optimizer] = [Adam(policy, cfg.general.lr) for policy in population]
     nt: NoiseTable = NoiseTable.create_shared(comm, cfg.noise.table_size, len(population[0]), cfg.noise.seed)
-    env: gym.Env = gym.make(cfg.env.name)
     reporter = LoggerReporter(comm, cfg, cfg.general.name)
 
     archive = None
@@ -47,6 +47,7 @@ if __name__ == '__main__':
     def ns_fn(model: torch.nn.Module, e: gym.Env, max_steps: int, r: np.random.RandomState = None) -> TrainingResult:
         rews, behv = gym_runner.run_model(model, e, max_steps, r)
         return NSRResult(rews, behv, archive, cfg.novelty.k)
+
 
     # initializing the archive
     for policy in population:
