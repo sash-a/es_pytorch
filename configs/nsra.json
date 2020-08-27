@@ -1,0 +1,46 @@
+{
+  "env": {
+    "name": "HopperBulletEnv-v0",
+    "max_steps": 2000
+  },
+
+  "noise": {
+    "table_size": 100000000,
+    "std": 0.02,
+    "seed": null
+  },
+
+  "policy": {
+    "std": 0.01,
+    "seed": 123
+  },
+
+  "general": {
+    "name": "hopper_nsra",
+
+    "gens": 5000,
+    "eps_per_gen": 960,
+    "eps_per_policy": 1,
+    "n_policies": 5,
+
+    "seed": 456,
+
+    "batch_size": 500,
+
+    "lr": 0.01,
+    "l2coeff": 0.005,
+
+    "save_interval": 100
+  },
+
+  "novelty": {
+    "k": 10,
+    "thresh": 2,
+    "archive_size": -1
+  },
+
+  "nsra": {
+    "weight_delta": 0.05,
+    "max_time_since_best": 15
+  }
+}

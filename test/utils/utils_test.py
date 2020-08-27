@@ -1,7 +1,7 @@
 import numpy as np
 
 from es.evo.noisetable import NoiseTable
-from es.utils.utils import batch_noise, scale_noise, moo_mean_rank, percent_rank
+from es.utils.utils import batch_noise, scale_noise, moo_mean_rank, percent_rank, moo_weighted_rank
 
 
 def test_batch_noise():
@@ -60,5 +60,30 @@ def test_moo_mean_rank():
         res.append(percent_rank(fits))
 
     expected = np.sum(res, axis=0) / 2
+
+    assert (expected == mean_ranked).all()
+
+
+def test_moo_weighted_rank():
+    evals = 10
+    objectives = 2
+
+    x = np.reshape(np.arange(evals * objectives), (-1, 2))
+
+    mean_ranked = moo_weighted_rank(x, 0.5, lambda l: 2 * l)  # function that doubles the fits
+
+    expected = []
+    for fits in x:
+        expected += [sum(fits)]
+    assert (expected == mean_ranked).all()
+    assert (mean_ranked == moo_mean_rank(x, lambda l: 2 * l)).all()
+
+    mean_ranked = moo_weighted_rank(x, 0.1, percent_rank)  # function that takes a percent of the fits
+
+    res = []
+    for i, fits in enumerate(x.T):
+        res.append(percent_rank(fits))
+
+    expected = res[0] * 0.1 + res[1] * 0.9
 
     assert (expected == mean_ranked).all()

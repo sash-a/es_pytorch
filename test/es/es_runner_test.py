@@ -1,8 +1,8 @@
 # Very informal test to make sure that parallelism is working
 
 import numpy as np
-from es.evo.es_runner import _share_results
 
+from es.evo.es import _share_results
 # noinspection PyUnresolvedReferences
 from test import comm
 

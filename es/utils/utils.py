@@ -83,6 +83,17 @@ def moo_mean_rank(x: np.ndarray, rank_fn):
     return np.mean(ranked, axis=0)
 
 
+def moo_weighted_rank(x: np.ndarray, w: float, rank_fn):
+    assert 0. <= w <= 1.
+    assert x.shape[1] == 2  # this only works for 2 objectives
+
+    ranked = []
+    for col in x.T:
+        ranked.append(rank_fn(col))
+
+    return ranked[0] * w + ranked[1] * (1 - w)
+
+
 def parse_args():
     parser = argparse.ArgumentParser(description='es-pytorch')
     parser.add_argument('config', type=str, help='Config file that will be used')
