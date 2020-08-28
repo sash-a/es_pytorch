@@ -77,12 +77,12 @@ if __name__ == '__main__':
         if fit > policies_best_fit[idx]:
             policies_best_fit[idx] = fit
             time_since_best[idx] = 0
-            obj_weight[idx] = max(1, obj_weight[idx] + cfg.nsra.weight_delta)
+            obj_weight[idx] = min(1, obj_weight[idx] + cfg.nsra.weight_delta)
         else:
             time_since_best[idx] += 1
 
         if time_since_best[idx] > cfg.nsra.max_time_since_best:
-            obj_weight[idx] = min(0, obj_weight[idx] - cfg.nsra.weight_delta)
+            obj_weight[idx] = max(0, obj_weight[idx] - cfg.nsra.weight_delta)
             time_since_best[idx] = 0
 
         # adding new behaviour and sharing archive
