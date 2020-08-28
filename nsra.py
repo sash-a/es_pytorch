@@ -1,3 +1,4 @@
+import logging
 import random
 from functools import partial
 from typing import List
@@ -84,6 +85,8 @@ if __name__ == '__main__':
         if time_since_best[idx] > cfg.nsra.max_time_since_best:
             obj_weight[idx] = max(0, obj_weight[idx] - cfg.nsra.weight_delta)
             time_since_best[idx] = 0
+
+        logging.info(f'w {idx}: {obj_weight[idx]}')
 
         # adding new behaviour and sharing archive
         archive = update_archive(comm, tr.behaviour[-3:], archive)
