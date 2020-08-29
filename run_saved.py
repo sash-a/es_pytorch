@@ -15,6 +15,6 @@ if __name__ == '__main__':
     # noinspection PyUnresolvedReferences
     import pybullet_envs
 
-    e = gym.make('HopperBulletEnv-v0', render=True).unwrapped
-    run_saved('saved/hopper_dist_new2/policy-582', e, 2000)
+    e = gym.make('HumanoidBulletEnv-v0', render=True).unwrapped
+    run_saved('saved/hum_rew_large/policy-253', e, 2000)
     e.close()

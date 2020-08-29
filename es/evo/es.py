@@ -55,13 +55,14 @@ def step(cfg,
     objectives = len(fits_pos[0])
 
     results = _share_results(comm, fits_pos, fits_neg, inds)
-    # subtracting rewards that used negative noise
-    fits = results[:, 0:objectives] - results[:, objectives:2 * objectives]
+    fits_pos, fits_neg = results[:, 0:objectives], results[:, objectives:2 * objectives]
+    ranked_fits = rank_fn(np.concatenate((fits_pos, fits_neg)))
+    ranked_fits = ranked_fits[:len(fits_pos)] - ranked_fits[len(fits_pos):]
     noise_inds = results[:, -1]
 
-    _approx_grad(fits, noise_inds, nt, policy.flat_params, optim, rank_fn, cfg)
+    _approx_grad(ranked_fits, noise_inds, nt, policy.flat_params, optim, cfg)
     noiseless_result = eval_one(policy, np.zeros(len(policy)), fit_fn, env, cfg.env.max_steps, None)
-    _report(reporter, fits, policy, noiseless_result, gen_start)
+    _report(reporter, fits_pos - fits_neg, policy, noiseless_result, gen_start)
 
     return noiseless_result
 
@@ -84,9 +85,8 @@ def _share_results(comm: MPI.Comm,
     return results.reshape((-1, 1 + 2 * objectives))  # flattening the process dim
 
 
-def _approx_grad(fits: ndarray, inds: ndarray, nt: NoiseTable, flat_params: ndarray, optim: Optimizer, rank_fn, cfg):
+def _approx_grad(ranked_fits: ndarray, inds: ndarray, nt: NoiseTable, flat_params: ndarray, optim: Optimizer, cfg):
     """approximating gradient and update policy params"""
-    ranked_fits = rank_fn(fits)
     grad = scale_noise(ranked_fits, inds, nt, cfg.general.batch_size) / cfg.general.eps_per_gen
     optim.step(cfg.general.l2coeff * flat_params - grad)
 

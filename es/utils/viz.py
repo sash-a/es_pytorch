@@ -2,24 +2,39 @@ from matplotlib import pyplot as plt
 
 
 def graph(file: str):
-    noiseless = []
-    avgs = []
-    maxs = []
+    dists = []
+    rews = []
+    obj_0_avgs = []
+    obj_0_maxs = []
+    obj_1_avgs = []
+    obj_1_maxs = []
+
     with open(file) as f:
         for line in f.readlines():
-            if 'avg' in line:
-                avgs.append(float(line.split(':')[3][:-1]))
-            if 'max' in line:
-                maxs.append(float(line.split(':')[3][:-1]))
-            if 'noiseless' in line:
-                noiseless.append(float(line.split(':')[3][:-1]))
+            if 'obj 0 avg' in line:
+                obj_0_avgs.append(float(line.split(':')[3][:-1]))
+            if 'obj 0 max' in line:
+                obj_0_maxs.append(float(line.split(':')[3][:-1]))
+            if 'obj 1 avg' in line:
+                obj_1_avgs.append(float(line.split(':')[3][:-1]))
+            if 'obj 1 max' in line:
+                obj_1_maxs.append(float(line.split(':')[3][:-1]))
+            if 'dist' in line:
+                dists.append(float(line.split(':')[3][:-1]))
+            if 'rew' in line:
+                rews.append(float(line.split(':')[3][:-1]))
 
-        plt.plot(noiseless, label='noiseless')
-        plt.plot(avgs, label='avg')
-        plt.plot(maxs, label='max')
+        # plt.plot(rews, label='rew')
+        # plt.plot(obj_0_avgs, label='avg (0)')
+        # plt.plot(obj_0_maxs, label='max (0)')
+
+        plt.plot(dists, label='dist')
+        plt.plot(obj_1_avgs, label='avg (1)')
+        plt.plot(obj_1_maxs, label='max (1)')
+
         plt.legend()
         plt.show()
 
 
 if __name__ == '__main__':
-    graph('../logs/test.log')
+    graph('../../logs/hopper_nsra.log')

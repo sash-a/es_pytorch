@@ -15,4 +15,4 @@ def update_archive(comm: MPI.Comm, behaviour: Sequence[float], archive: Optional
 
 def novelty(behaviour: np.ndarray, archive: np.ndarray, n: int) -> float:
     dists = heapq.nsmallest(n, distance.cdist(np.array([behaviour]), archive, 'sqeuclidean')[0])
-    return sum(dists)
+    return np.mean(dists)

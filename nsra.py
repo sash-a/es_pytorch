@@ -86,7 +86,9 @@ if __name__ == '__main__':
             obj_weight[idx] = max(0, obj_weight[idx] - cfg.nsra.weight_delta)
             time_since_best[idx] = 0
 
-        logging.info(f'w {idx}: {obj_weight[idx]}')
+        if comm.rank == 0:
+            logging.info(f'idx: {idx}')
+            logging.info(f'w: {obj_weight[idx]}')
 
         # adding new behaviour and sharing archive
         archive = update_archive(comm, tr.behaviour[-3:], archive)

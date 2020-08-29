@@ -28,6 +28,6 @@ def test_novelty():
     beh = np.array([0, 0])
     archive = np.array([[2, 2], [1, 1], [3, 3]])
     assert novelty(beh, archive, 1) == 2
-    assert novelty(beh, archive, 2) == 10
-    assert novelty(beh, archive, 3) == 28
-    assert novelty(beh, archive, 50) == 28
+    assert novelty(beh, archive, 2) == 10 / 2
+    assert novelty(beh, archive, 3) == 28 / 3
+    assert novelty(beh, archive, 50) == 28 / 3
