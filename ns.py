@@ -53,7 +53,7 @@ if __name__ == '__main__':
     initial_results = []
     for policy in population:
         rews, behaviour = gym_runner.run_model(policy.pheno(np.zeros(len(policy))), env, cfg.env.max_steps, rs)
-        archive = update_archive(comm, behaviour[-3:], archive)
+        archive = update_archive(comm, behaviour[-3:-1], archive)
         initial_results.append(TR(rews, behaviour, archive, cfg.novelty.k))
 
     for initial_result in initial_results:
@@ -68,4 +68,4 @@ if __name__ == '__main__':
         tr = es.step(cfg, comm, population[idx], optims[idx], nt, env, ns_fn, rs, rank_fn, reporter)
         tr = comm.scatter([tr] * comm.size)
         # adding new behaviour and sharing archive
-        archive = update_archive(comm, tr.behaviour[-3:], archive)
+        archive = update_archive(comm, tr.behaviour[-3:-1], archive)

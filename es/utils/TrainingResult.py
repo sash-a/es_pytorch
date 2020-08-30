@@ -46,7 +46,7 @@ class NSResult(TrainingResult):
         self.k = k
 
     def get_result(self) -> List[float]:
-        return [novelty(np.array(self.behaviour[-3:]), self.archive, self.k)]
+        return [novelty(np.array(self.behaviour[-3:-1]), self.archive, self.k)]
 
 
 class NSRResult(NSResult):
@@ -54,4 +54,4 @@ class NSRResult(NSResult):
         super().__init__(rewards, behaviour, archive, k)
 
     def get_result(self) -> List[float]:
-        return [sum(self.rewards), super().get_result()[0]]
+        return [self.behaviour[-3], super().get_result()[0]]

@@ -21,6 +21,7 @@ from es.utils.utils import compute_centered_ranks, moo_weighted_rank
 
 if __name__ == '__main__':
     comm: MPI.Comm = MPI.COMM_WORLD
+    gym.logger.set_level(40)
 
     cfg = utils.load_config(utils.parse_args())
 
@@ -31,10 +32,13 @@ if __name__ == '__main__':
 
     # initializing population, optimizers, noise and env
     env: gym.Env = gym.make(cfg.env.name)
+
+    in_size, out_size = np.prod(env.observation_space.shape), np.prod(env.action_space.shape)
     population: List[Policy] = [
-        Policy(FullyConnected(env.observation_space.shape[0], env.action_space.shape[0], 256, 2, torch.nn.Tanh,
-                              cfg.policy), cfg.noise.std) for _ in range(cfg.general.n_policies)
+        Policy(FullyConnected(in_size, out_size, 256, 2, torch.nn.Tanh, cfg.policy),
+               cfg.noise.std) for _ in range(cfg.general.n_policies)
     ]
+
     optims: List[Optimizer] = [Adam(policy, cfg.general.lr) for policy in population]
     nt: NoiseTable = NoiseTable.create_shared(comm, cfg.noise.table_size, len(population[0]), cfg.noise.seed)
     reporter = LoggerReporter(comm, cfg, cfg.general.name)
@@ -57,7 +61,7 @@ if __name__ == '__main__':
     initial_results = []
     for policy in population:
         rews, behaviour = gym_runner.run_model(policy.pheno(np.zeros(len(policy))), env, cfg.env.max_steps, rs)
-        archive = update_archive(comm, behaviour[-3:], archive)
+        archive = update_archive(comm, behaviour[-3:-1], archive)
         initial_results.append(TR(rews, behaviour, archive, cfg.novelty.k))
 
     for initial_result in initial_results:
@@ -91,4 +95,4 @@ if __name__ == '__main__':
             logging.info(f'w: {obj_weight[idx]}')
 
         # adding new behaviour and sharing archive
-        archive = update_archive(comm, tr.behaviour[-3:], archive)
+        archive = update_archive(comm, tr.behaviour[-3:-1], archive)
