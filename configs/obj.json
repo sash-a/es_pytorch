@@ -18,7 +18,7 @@
   "general": {
     "name": "hopper_obj",
 
-    "gens": 100000,
+    "gens": 5000,
     "eps_per_gen": 960,
     "eps_per_policy": 1,
     "n_policies": 1,

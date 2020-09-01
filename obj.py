@@ -29,7 +29,12 @@ if __name__ == '__main__':
     # initializing policy, optimizer, noise and env
     env: gym.Env = gym.make(cfg.env.name)
     policy: Policy = Policy(
-        FullyConnected(env.observation_space.shape[0], env.action_space.shape[0], 256, 2, torch.nn.Tanh, cfg.policy),
+        FullyConnected(np.prod(env.observation_space.shape),
+                       np.prod(env.action_space.shape),
+                       256,
+                       2,
+                       torch.nn.Tanh,
+                       cfg.policy),
         cfg.noise.std)
     optim: Optimizer = Adam(policy, cfg.general.lr)
     nt: NoiseTable = NoiseTable.create_shared(comm, cfg.noise.table_size, len(policy), cfg.noise.seed)
@@ -40,10 +45,18 @@ if __name__ == '__main__':
 
     def r_fn(model: torch.nn.Module, e: gym.Env, max_steps: int, r: np.random.RandomState = None) -> TrainingResult:
         rews, behv = gym_runner.run_model(model, e, max_steps, r)
-        return DistResult(rews, behv)
+        # return DistResult(rews, behv)
         # return XDistResult(rews, behv)
-        # return RewardResult(rews, behv)
+        return RewardResult(rews, behv)
 
 
+    noise_inc_period = 10
+    noice_inc_amnt = 10
     for gen in range(cfg.general.gens):
         tr = es.step(cfg, comm, policy, optim, nt, env, r_fn, rs, rank_fn, reporter)
+
+        if gen % noise_inc_period == 0:
+            policy.std = noice_inc_amnt * cfg.noise.std
+
+        if gen % (2 * noise_inc_period) == 0:
+            policy.std = cfg.noise.std
