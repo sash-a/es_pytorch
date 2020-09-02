@@ -36,6 +36,9 @@ if __name__ == '__main__':
                        torch.nn.Tanh,
                        cfg.policy),
         cfg.noise.std)
+
+    print(f'{comm.rank} {policy._module.model[0].weight.data}')
+
     optim: Optimizer = Adam(policy, cfg.general.lr)
     nt: NoiseTable = NoiseTable.create_shared(comm, cfg.noise.table_size, len(policy), cfg.noise.seed)
     reporter = LoggerReporter(comm, cfg, cfg.general.name)
@@ -50,13 +53,5 @@ if __name__ == '__main__':
         return RewardResult(rews, behv)
 
 
-    noise_inc_period = 10
-    noice_inc_amnt = 10
     for gen in range(cfg.general.gens):
         tr = es.step(cfg, comm, policy, optim, nt, env, r_fn, rs, rank_fn, reporter)
-
-        if gen % noise_inc_period == 0:
-            policy.std = noice_inc_amnt * cfg.noise.std
-
-        if gen % (2 * noise_inc_period) == 0:
-            policy.std = cfg.noise.std

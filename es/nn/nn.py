@@ -20,4 +20,4 @@ class FullyConnected(nn.Module):
         if self.std != 0 and rs is not None:
             a += rs.randn(*a.shape) * self.std
 
-        return a
+        return a.numpy()

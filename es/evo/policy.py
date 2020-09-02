@@ -7,9 +7,16 @@ import numpy as np
 import torch
 
 
+def init_normal(m):
+    if type(m) == torch.nn.Linear:
+        torch.nn.init.kaiming_normal_(m.weight)
+
+
 class Policy(torch.nn.Module):
     def __init__(self, module: torch.nn.Module, std: float):
         super().__init__()
+        module.apply(init_normal)
+
         self._module: torch.nn.Module = module
         self.std = std
 
