@@ -13,7 +13,7 @@ from es.nn.optimizers import Adam, Optimizer
 from es.utils import utils, gym_runner
 # noinspection PyUnresolvedReferences
 from es.utils.TrainingResult import TrainingResult, DistResult, XDistResult, RewardResult
-from es.utils.reporters import LoggerReporter
+from es.utils.reporters import LoggerReporter, ReporterSet, StdoutReporter
 from es.utils.utils import moo_mean_rank, compute_centered_ranks
 
 if __name__ == '__main__':
@@ -37,11 +37,9 @@ if __name__ == '__main__':
                        cfg.policy),
         cfg.noise.std)
 
-    print(f'{comm.rank} {policy._module.model[0].weight.data}')
-
     optim: Optimizer = Adam(policy, cfg.general.lr)
     nt: NoiseTable = NoiseTable.create_shared(comm, cfg.noise.table_size, len(policy), cfg.noise.seed)
-    reporter = LoggerReporter(comm, cfg, cfg.general.name)
+    reporter = ReporterSet(LoggerReporter(comm, cfg, cfg.general.name), StdoutReporter(comm))
 
     rank_fn = partial(moo_mean_rank, rank_fn=compute_centered_ranks)
 

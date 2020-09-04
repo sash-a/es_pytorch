@@ -30,6 +30,27 @@ class Reporter(ABC):
         pass
 
 
+class ReporterSet(Reporter):
+    def __init__(self, *reporters: Reporter):
+        self.reporters = reporters
+
+    def report_fits(self, fits: np.ndarray):
+        for reporter in self.reporters:
+            reporter.report_fits(fits)
+
+    def start_gen(self):
+        for reporter in self.reporters:
+            reporter.start_gen()
+
+    def report_noiseless(self, tr: TrainingResult, noiseless_policy: Policy):
+        for reporter in self.reporters:
+            reporter.report_noiseless(tr, noiseless_policy)
+
+    def end_gen(self, time: float):
+        for reporter in self.reporters:
+            reporter.end_gen(time)
+
+
 class MPIReporter(Reporter, ABC):
     def __init__(self, comm: MPI.Comm):
         self.comm = comm
@@ -70,19 +91,34 @@ class MPIReporter(Reporter, ABC):
 
 
 class StdoutReporter(MPIReporter):
+    def __init__(self, comm: MPI.Comm):
+        super().__init__(comm)
+        if comm.rank == 0:
+            self.gen = 0
+
     def _start_gen(self):
-        pass
+        print(f'\n\n'
+              f'----------------------------------------'
+              f'\ngen:{self.gen}')
 
     def _report_fits(self, fits: np.ndarray):
-        avg = np.mean(fits)
-        mx = np.max(fits)
-        print(f'avg:{avg:0.2f}-max:{mx:0.2f}')
+        for i, col in enumerate(fits.T):
+            # Objectives are grouped by column so this finds the avg and max of each objective
+            print(f'obj {i} avg:{np.mean(col):0.2f}')
+            print(f'obj {i} max:{np.max(col):0.2f}')
 
     def _report_noiseless(self, tr: TrainingResult, noiseless_policy: Policy):
-        print(f'noiseless:{tr.result[0]:0.2f}')
+        print(f'fit:{tr.result}')
+        # Calculating distance traveled (ignoring height dim). Assumes starting at 0, 0
+        dist = np.linalg.norm(np.array(tr.behaviour[-3:-1]))
+        rew = np.sum(tr.rewards)
+
+        print(f'dist:{dist}')
+        print(f'rew:{rew}')
 
     def _end_gen(self, time: float):
-        print(f'time {time:0.2f}')
+        print(f'time:{time:0.2f}')
+        self.gen += 1
 
 
 class LoggerReporter(MPIReporter):
@@ -116,8 +152,8 @@ class LoggerReporter(MPIReporter):
         dist = np.linalg.norm(np.array(tr.behaviour[-3:-1]))
         rew = np.sum(tr.rewards)
 
-        logging.info(f'dist: {dist}')
-        logging.info(f'rew: {rew}')
+        logging.info(f'dist:{dist}')
+        logging.info(f'rew:{rew}')
 
         if rew > self.best_rew or dist > self.best_dist:
             self.best_rew = max(rew, self.best_rew)

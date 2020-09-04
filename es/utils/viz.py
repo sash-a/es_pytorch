@@ -57,11 +57,14 @@ def graph(file: str):
     for i in range(1):
         # plt.plot([r.w for r in results if r.idx == i], label=f'w {i}')
         print([r.gen for r in results if r.idx == i])
-        plt.plot([r.gen for r in results if r.idx == i], [r.rew for r in results if r.idx == i], label=f'dist {i}')
+        plt.plot([r.gen for r in results if r.idx == i], [r.obj0.max for r in results if r.idx == i], label=f'max {i}')
+        plt.plot([r.gen for r in results if r.idx == i], [r.rew for r in results if r.idx == i], label=f'rew {i}')
 
     plt.legend()
     plt.show()
 
 
 if __name__ == '__main__':
-    graph('../../logs/walker_nsra_newrank_unsigned.log')
+    graph('../../logs/other.log')
+    # graph('../../logs/hopper_mujoco.log')
+

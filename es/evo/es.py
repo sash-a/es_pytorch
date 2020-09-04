@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import time
 from collections.abc import Callable
-from typing import List, Sequence
+from typing import List, Sequence, Optional
 
 import gym
 import numpy as np
@@ -28,7 +28,7 @@ def step(cfg,
          optim: Optimizer,
          nt: NoiseTable,
          env: gym.Env,
-         fit_fn: Callable[[Module, gym.Env, int, RandomState], TrainingResult],
+         fit_fn: Callable[[Module, gym.Env, int, Optional[RandomState]], TrainingResult],
          rs: RandomState = np.random.RandomState(),
          rank_fn: Callable[[Sequence[ndarray]], ndarray] = compute_centered_ranks,
          reporter: Reporter = StdoutReporter(MPI.COMM_WORLD)) -> TrainingResult:
@@ -49,8 +49,8 @@ def step(cfg,
         idx, noise = nt.sample(rs)
         inds.append(idx)
         # for each noise ind sampled, both add and subtract the noise
-        fits_pos.append(eval_one(policy, noise, fit_fn, env, cfg.env.max_steps, rs).result)
-        fits_neg.append(eval_one(policy, -noise, fit_fn, env, cfg.env.max_steps, rs).result)
+        fits_pos.append(fit_fn(policy.pheno(noise), env, cfg.env.max_steps, rs).result)
+        fits_neg.append(fit_fn(policy.pheno(-noise), env, cfg.env.max_steps, rs).result)
 
     objectives = len(fits_pos[0])
 
@@ -61,15 +61,10 @@ def step(cfg,
     noise_inds = results[:, -1]
 
     _approx_grad(ranked_fits, noise_inds, nt, policy.flat_params, optim, cfg)
-    noiseless_result = eval_one(policy, np.zeros(len(policy)), fit_fn, env, cfg.env.max_steps, None)
+    noiseless_result = fit_fn(policy.pheno(np.zeros(len(policy))), env, cfg.env.max_steps, None)
     _report(reporter, fits_pos - fits_neg, policy, noiseless_result, gen_start)
 
     return noiseless_result
-
-
-def eval_one(policy: Policy, noise: ndarray, fit_fn, env: gym.Env, steps: int, rs) -> TrainingResult:
-    net = policy.pheno(noise)
-    return fit_fn(net, env, steps, rs)
 
 
 def _share_results(comm: MPI.Comm,

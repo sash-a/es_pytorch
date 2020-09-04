@@ -4,6 +4,7 @@ import gym
 import numpy as np
 import torch
 
+BULLLET_ENV_SUFFIX = 'BulletEnv'
 behv_period = 10
 
 
@@ -14,7 +15,7 @@ def run_model(model: torch.nn.Module,
               render: bool = False) -> Tuple[List[float], List[float]]:
     """
     Evaluates model on the provided env
-    :returns: tuple of cumulative rewards and distances traveled
+    :returns: tuple of rewards earned and positions at each timestep position list is always of length `max_steps`
     """
     behv = []
     rews = []
@@ -23,12 +24,11 @@ def run_model(model: torch.nn.Module,
         obs = env.reset()
         for step in range(max_steps):
             obs = torch.from_numpy(obs).float()
-
             action = model(obs, rs=rs)
             obs, rew, done, _ = env.step(action)
+
             rews += [rew]
-            if step % behv_period == 0:
-                behv.extend(_get_pos(env))
+            behv.extend(_get_pos(env.unwrapped))
 
             if render:
                 env.render()
@@ -36,10 +36,16 @@ def run_model(model: torch.nn.Module,
             if done:
                 break
 
-    behv += behv[-3:] * int((max_steps / behv_period) - len(behv) / 3)
-
+    behv += behv[-3:] * (max_steps - int(len(behv) / 3))
     return rews, behv
 
 
-def _get_pos(env: gym.Env):
-    return env.robot_body.get_pose()[:3]
+def _get_pos(env):
+    if BULLLET_ENV_SUFFIX in env.spec.id:  # bullet env
+        return env.robot_body.get_pose()[:3]
+    else:  # mujoco env
+        model = env.model
+        mass = np.reshape(model.body_mass, (-1, 1))
+        xpos = env.data.xipos
+        center = (np.sum(mass * xpos, 0) / np.sum(mass))
+        return center[0], center[1], center[2]
