@@ -105,6 +105,6 @@ def parse_args():
 
 
 def load_config(cfg_file: str):
-    """:returns: named tuple"""
+    """:returns: a named tuple from a json file"""
     # noinspection PyArgumentList
     return json.load(open(cfg_file), object_hook=lambda d: namedtuple('Cfg', d.keys())(*d.values()))

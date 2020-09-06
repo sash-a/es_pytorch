@@ -4,3 +4,4 @@ saved/
 wandb/
 **/homeconf.json
 **/*.log
+mlruns

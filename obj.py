@@ -3,6 +3,7 @@ from functools import partial
 import gym
 import numpy as np
 import torch
+from mlflow import set_experiment, start_run
 from mpi4py import MPI
 
 import es.evo.es as es
@@ -13,13 +14,14 @@ from es.nn.optimizers import Adam, Optimizer
 from es.utils import utils, gym_runner
 # noinspection PyUnresolvedReferences
 from es.utils.TrainingResult import TrainingResult, DistResult, XDistResult, RewardResult
-from es.utils.reporters import LoggerReporter, ReporterSet, StdoutReporter
+from es.utils.reporters import LoggerReporter, ReporterSet, StdoutReporter, MLFlowReporter
 from es.utils.utils import moo_mean_rank, compute_centered_ranks
 
 if __name__ == '__main__':
     comm: MPI.Comm = MPI.COMM_WORLD
 
-    cfg = utils.load_config(utils.parse_args())
+    cfg_file = utils.parse_args()
+    cfg = utils.load_config(cfg_file)
 
     # This is required for the moment, as parameter initialization needs to be deterministic across all processes
     assert cfg.policy.seed is not None
@@ -39,7 +41,16 @@ if __name__ == '__main__':
 
     optim: Optimizer = Adam(policy, cfg.general.lr)
     nt: NoiseTable = NoiseTable.create_shared(comm, cfg.noise.table_size, len(policy), cfg.noise.seed)
-    reporter = ReporterSet(LoggerReporter(comm, cfg, cfg.general.name), StdoutReporter(comm))
+
+    # MLFlow tracking
+    set_experiment(cfg.env.name)
+    run = start_run(run_name=cfg.general.name)
+
+    reporter = ReporterSet(
+        LoggerReporter(comm, cfg, cfg.general.name),
+        StdoutReporter(comm),
+        MLFlowReporter(comm, cfg_file)
+    )
 
     rank_fn = partial(moo_mean_rank, rank_fn=compute_centered_ranks)
 
@@ -51,5 +62,6 @@ if __name__ == '__main__':
         return RewardResult(rews, behv)
 
 
-    for gen in range(cfg.general.gens):
-        tr = es.step(cfg, comm, policy, optim, nt, env, r_fn, rs, rank_fn, reporter)
+    with run:
+        for gen in range(cfg.general.gens):
+            tr = es.step(cfg, comm, policy, optim, nt, env, r_fn, rs, rank_fn, reporter)

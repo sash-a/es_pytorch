@@ -4,8 +4,7 @@ import gym
 import numpy as np
 import torch
 
-BULLLET_ENV_SUFFIX = 'BulletEnv'
-behv_period = 10
+BULLET_ENV_SUFFIX = 'BulletEnv'
 
 
 def run_model(model: torch.nn.Module,
@@ -41,7 +40,7 @@ def run_model(model: torch.nn.Module,
 
 
 def _get_pos(env):
-    if BULLLET_ENV_SUFFIX in env.spec.id:  # bullet env
+    if BULLET_ENV_SUFFIX in env.spec.id:  # bullet env
         return env.robot_body.get_pose()[:3]
     else:  # mujoco env
         model = env.model
