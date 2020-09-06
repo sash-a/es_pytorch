@@ -44,7 +44,7 @@ if __name__ == '__main__':
     reporter = ReporterSet(
         LoggerReporter(comm, cfg, cfg.general.name),
         StdoutReporter(comm),
-        MLFlowReporter(comm, cfg_file)
+        MLFlowReporter(comm, cfg_file, cfg)
     )
 
     rank_fn = partial(moo_mean_rank, rank_fn=compute_centered_ranks)
