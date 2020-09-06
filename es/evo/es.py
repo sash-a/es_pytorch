@@ -16,6 +16,7 @@ from torch.nn import Module
 from es.evo.noisetable import NoiseTable
 from es.evo.policy import Policy
 from es.nn.optimizers import Optimizer
+from es.utils.ObStat import ObStat
 from es.utils.TrainingResult import TrainingResult
 from es.utils.reporters import StdoutReporter, Reporter
 from es.utils.utils import scale_noise, compute_centered_ranks
@@ -31,6 +32,7 @@ def step(cfg,
          fit_fn: Callable[[Module, gym.Env, int, Optional[RandomState]], TrainingResult],
          rs: RandomState = np.random.RandomState(),
          rank_fn: Callable[[Sequence[ndarray]], ndarray] = compute_centered_ranks,
+         obstat: Optional[ObStat] = None,
          reporter: Reporter = StdoutReporter(MPI.COMM_WORLD)) -> TrainingResult:
     """
     Runs a single generation of ES
@@ -43,25 +45,28 @@ def step(cfg,
 
     gen_start = time.time()
     reporter.start_gen()
-    fits_pos, fits_neg, inds = [], [], []
+    results_pos, results_neg, inds = [], [], []
 
     for _ in range(eps_per_proc):
         idx, noise = nt.sample(rs)
         inds.append(idx)
         # for each noise ind sampled, both add and subtract the noise
-        fits_pos.append(fit_fn(policy.pheno(noise), env, cfg.env.max_steps, rs).result)
-        fits_neg.append(fit_fn(policy.pheno(-noise), env, cfg.env.max_steps, rs).result)
+        results_pos.append(fit_fn(policy.pheno(noise), env, cfg.env.max_steps, rs))
+        results_neg.append(fit_fn(policy.pheno(-noise), env, cfg.env.max_steps, rs))
+        obstat.inc(*results_pos[-1].ob_sum_sq_cnt)
+        obstat.inc(*results_neg[-1].ob_sum_sq_cnt)
 
-    objectives = len(fits_pos[0])
+    n_objectives = len(results_pos[0].result)
 
-    results = _share_results(comm, fits_pos, fits_neg, inds)
-    fits_pos, fits_neg = results[:, 0:objectives], results[:, objectives:2 * objectives]
+    results = _share_results(comm, [tr.result for tr in results_pos], [tr.result for tr in results_neg], inds)
+    fits_pos, fits_neg = results[:, 0:n_objectives], results[:, n_objectives:2 * n_objectives]
     ranked_fits = rank_fn(np.concatenate((fits_pos, fits_neg)))
     ranked_fits = ranked_fits[:len(fits_pos)] - ranked_fits[len(fits_pos):]
     noise_inds = results[:, -1]
+    obstat.mpi_inc(comm)
 
     _approx_grad(ranked_fits, noise_inds, nt, policy.flat_params, optim, cfg)
-    noiseless_result = fit_fn(policy.pheno(np.zeros(len(policy))), env, cfg.env.max_steps, None)
+    noiseless_result = fit_fn(policy.pheno(np.zeros(len(policy))), env, cfg.env.max_steps, rs)
     _report(reporter, fits_pos - fits_neg, policy, noiseless_result, gen_start)
 
     return noiseless_result

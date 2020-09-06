@@ -10,7 +10,7 @@ from es.utils.gym_runner import run_model
 def run_saved(policy_path: str, env: gym.Env, steps: int):
     p = Policy.load(policy_path)
     while True:
-        r, d = run_model(p.pheno(np.zeros(len(p))), env, steps, render=True)
+        r, d, _= run_model(p.pheno(np.zeros(len(p))), env, steps, render=True)
         print(f'\n\nrewards {np.sum(r)}\ndist {np.linalg.norm(np.array(d[-3:-1]))}\n\n')
 
 

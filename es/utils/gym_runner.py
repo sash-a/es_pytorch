@@ -11,20 +11,24 @@ def run_model(model: torch.nn.Module,
               env: gym.Env,
               max_steps: int,
               rs: np.random.RandomState = None,
-              render: bool = False) -> Tuple[List[float], List[float]]:
+              save_obs: bool = False,
+              render: bool = False) -> Tuple[List[float], List[float], np.ndarray]:
     """
     Evaluates model on the provided env
     :returns: tuple of rewards earned and positions at each timestep position list is always of length `max_steps`
     """
     behv = []
     rews = []
+    obs = []
 
     with torch.no_grad():
-        obs = env.reset()
+        ob = env.reset()
         for step in range(max_steps):
-            obs = torch.from_numpy(obs).float()
-            action = model(obs, rs=rs)
-            obs, rew, done, _ = env.step(action)
+            ob = torch.from_numpy(ob).float()
+            action = model(ob, rs=rs)
+            ob, rew, done, _ = env.step(action)
+            if save_obs:
+                obs.append(ob)
 
             rews += [rew]
             behv.extend(_get_pos(env.unwrapped))
@@ -35,8 +39,11 @@ def run_model(model: torch.nn.Module,
             if done:
                 break
 
+    if not save_obs:
+        obs.append(np.zeros(ob.shape))
+
     behv += behv[-3:] * (max_steps - int(len(behv) / 3))
-    return rews, behv
+    return rews, behv, np.array(obs)
 
 
 def _get_pos(env):

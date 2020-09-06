@@ -5,14 +5,15 @@
   },
 
   "noise": {
-    "table_size": 100000000,
+    "table_size": 250000000,
     "std": 0.02,
     "seed": null
   },
 
   "policy": {
     "std": 0.01,
-    "seed": 123
+    "seed": 123,
+    "save_obs_chance": 0.01
   },
 
   "general": {

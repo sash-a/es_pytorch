@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Sequence, List
+from typing import Sequence, List, Tuple
 
 import numpy as np
 
@@ -7,9 +7,15 @@ from es.utils.novelty import novelty
 
 
 class TrainingResult(ABC):
-    def __init__(self, rewards: Sequence[float], behaviour: Sequence[float], *args, **kwargs):
+    def __init__(self, rewards: Sequence[float], behaviour: Sequence[float], obs: np.ndarray, *args, **kwargs):
         self.rewards: Sequence[float] = rewards
         self.behaviour: Sequence[float] = behaviour
+        self.obs: np.ndarray = obs
+
+    @property
+    def ob_sum_sq_cnt(self) -> Tuple[np.ndarray, np.ndarray, int]:
+        cnt = len(self.obs) if np.any(self.obs) else 0
+        return self.obs.sum(axis=0), np.square(self.obs).sum(axis=0), cnt
 
     @abstractmethod
     def get_result(self) -> Sequence[float]:
@@ -19,16 +25,16 @@ class TrainingResult(ABC):
 
 
 class RewardResult(TrainingResult):
-    def __init__(self, rewards: Sequence[float], behaviour: Sequence[float]):
-        super().__init__(rewards, behaviour)
+    def __init__(self, rewards: Sequence[float], behaviour: Sequence[float], obs: np.ndarray):
+        super().__init__(rewards, behaviour, obs)
 
     def get_result(self) -> List[float]:
         return [sum(self.rewards)]
 
 
 class DistResult(TrainingResult):
-    def __init__(self, rewards: Sequence[float], behaviour: Sequence[float]):
-        super().__init__(rewards, behaviour)
+    def __init__(self, rewards: Sequence[float], behaviour: Sequence[float], obs: np.ndarray):
+        super().__init__(rewards, behaviour, obs)
 
     def get_result(self) -> List[float]:
         return [np.linalg.norm(self.behaviour[-3:-1])]
@@ -40,8 +46,9 @@ class XDistResult(DistResult):
 
 
 class NSResult(TrainingResult):
-    def __init__(self, rewards: Sequence[float], behaviour: Sequence[float], archive: np.ndarray, k: int):
-        super().__init__(rewards, behaviour)
+    def __init__(self, rewards: Sequence[float], behaviour: Sequence[float], obs: np.ndarray, archive: np.ndarray,
+                 k: int):
+        super().__init__(rewards, behaviour, obs)
         self.archive = archive
         self.k = k
 
@@ -50,8 +57,9 @@ class NSResult(TrainingResult):
 
 
 class NSRResult(NSResult):
-    def __init__(self, rewards: Sequence[float], behaviour: Sequence[float], archive: np.ndarray, k: int):
-        super().__init__(rewards, behaviour, archive, k)
+    def __init__(self, rewards: Sequence[float], behaviour: Sequence[float], obs: np.ndarray, archive: np.ndarray,
+                 k: int):
+        super().__init__(rewards, behaviour, obs, archive, k)
 
     def get_result(self) -> List[float]:
         return [self.behaviour[-3], super().get_result()[0]]

@@ -7,7 +7,7 @@ from mpi4py import MPI
 
 
 def create_shared_arr(comm: MPI.Comm, size: int) -> np.ndarray:
-    itemsize: int = MPI.DOUBLE.Get_size()
+    itemsize: int = MPI.FLOAT.Get_size()
     if comm.rank == 0:
         nbytes: int = size * itemsize
     else:
@@ -17,7 +17,7 @@ def create_shared_arr(comm: MPI.Comm, size: int) -> np.ndarray:
 
     # create a numpy array whose data points to the shared mem
     buf, itemsize = win.Shared_query(0)
-    return np.ndarray(buffer=buf, dtype=np.float64, shape=(size,))
+    return np.ndarray(buffer=buf, dtype=np.float32, shape=(size,))
 
 
 class NoiseTable:
@@ -52,7 +52,7 @@ class NoiseTable:
 
     @staticmethod
     def make_noise(size: int, seed=None) -> np.ndarray:
-        return np.random.RandomState(seed).randn(size)
+        return np.random.RandomState(seed).randn(size).astype(np.float32)
 
     @staticmethod
     def create_shared(global_comm: MPI.Comm, size: int, n_params: int, seed=None) -> NoiseTable:
@@ -68,7 +68,7 @@ class NoiseTable:
         if global_comm.rank == 0:  # create and distribute seed
             seed = seed if seed is not None else np.random.randint(0, 10000)  # create seed if one is not provided
             for i in range(n_nodes):
-                global_rank_to_send = global_comm.recv(source=MPI.ANY_SOURCE)  # recv global rank from each nodes 0 proc
+                global_rank_to_send = global_comm.recv(source=MPI.ANY_SOURCE)  # recv global rank from each nodes proc 1
                 print(f'Sending seed {seed} to rank {global_rank_to_send}')
                 global_comm.send(seed, global_rank_to_send)  # send seed to that rank
 
@@ -76,7 +76,6 @@ class NoiseTable:
             global_comm.send(global_comm.rank, 0)  # send local rank
             seed = global_comm.recv(source=0)  # receive noise seed
             print(f'Rank {global_comm.rank} received seed {seed}')
-
             shared_arr[:size] = NoiseTable.make_noise(size, seed)  # create arr values
 
         global_comm.Barrier()  # wait until all nodes have set the array values
