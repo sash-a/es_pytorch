@@ -6,7 +6,7 @@ from abc import ABC, abstractmethod
 from datetime import datetime
 
 import numpy as np
-from mlflow import log_params, log_metric
+from mlflow import log_params, log_metric, set_experiment, start_run
 from mpi4py import MPI
 from pandas import json_normalize
 
@@ -169,10 +169,13 @@ class LoggerReporter(MPIReporter):
 
 
 class MLFlowReporter(MPIReporter):
-    def __init__(self, comm: MPI.Comm, cfg_file: str):
+    def __init__(self, comm: MPI.Comm, cfg_file: str, cfg):
         super().__init__(comm)
 
         if comm.rank == 0:
+            # MLFlow tracking
+            set_experiment(cfg.env.name)
+            start_run(run_name=cfg.general.name)
             log_params(json_normalize(json.load(open(cfg_file))).to_dict(orient='records')[0])
             self.gen = 0
             self.best_rew = 0
@@ -184,8 +187,6 @@ class MLFlowReporter(MPIReporter):
     def _report_fits(self, fits: np.ndarray):
         for i, col in enumerate(fits.T):
             # Objectives are grouped by column so this finds the avg and max of each objective
-            # self.mlflow.log_metric(self.run_id, f'obj {i} avg', np.mean(col), step=self.gen)
-            # self.mlflow.log_metric(self.run_id, f'obj {i} max', np.max(col), step=self.gen)
             log_metric(f'obj {i} avg', np.mean(col), self.gen)
             log_metric(f'obj {i} max', np.max(col), self.gen)
 
@@ -194,8 +195,6 @@ class MLFlowReporter(MPIReporter):
         dist = np.linalg.norm(np.array(tr.behaviour[-3:-1]))
         rew = np.sum(tr.rewards)
 
-        # self.mlflow.log_metric(self.run_id, 'dist', dist, step=self.gen)
-        # self.mlflow.log_metric(self.run_id, 'rew', rew, step=self.gen)
         log_metric('dist', dist, self.gen)
         log_metric('rew', rew, self.gen)
 

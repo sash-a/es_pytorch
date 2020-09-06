@@ -3,7 +3,6 @@ from functools import partial
 import gym
 import numpy as np
 import torch
-from mlflow import set_experiment, start_run
 from mpi4py import MPI
 
 import es.evo.es as es
@@ -42,10 +41,6 @@ if __name__ == '__main__':
     optim: Optimizer = Adam(policy, cfg.general.lr)
     nt: NoiseTable = NoiseTable.create_shared(comm, cfg.noise.table_size, len(policy), cfg.noise.seed)
 
-    # MLFlow tracking
-    set_experiment(cfg.env.name)
-    run = start_run(run_name=cfg.general.name)
-
     reporter = ReporterSet(
         LoggerReporter(comm, cfg, cfg.general.name),
         StdoutReporter(comm),
@@ -62,6 +57,5 @@ if __name__ == '__main__':
         return RewardResult(rews, behv)
 
 
-    with run:
-        for gen in range(cfg.general.gens):
-            tr = es.step(cfg, comm, policy, optim, nt, env, r_fn, rs, rank_fn, reporter)
+    for gen in range(cfg.general.gens):
+        tr = es.step(cfg, comm, policy, optim, nt, env, r_fn, rs, rank_fn, reporter)
