@@ -67,7 +67,7 @@ def step(cfg,
 
     _approx_grad(ranked_fits, noise_inds, nt, policy.flat_params, optim, cfg)
     noiseless_result = fit_fn(policy.pheno(np.zeros(len(policy))), env, cfg.env.max_steps, rs)
-    _report(reporter, fits_pos - fits_neg, policy, noiseless_result, gen_start)
+    _report(reporter, np.concatenate((fits_pos, fits_neg), 0), policy, noiseless_result, gen_start)
 
     return noiseless_result
 

@@ -1,6 +1,7 @@
 from functools import partial
 
 import gym
+import mlflow
 import numpy as np
 import torch
 from mpi4py import MPI
@@ -11,7 +12,6 @@ from es.evo.policy import Policy
 from es.nn.nn import FullyConnected
 from es.nn.optimizers import Adam, Optimizer
 from es.utils import utils, gym_runner
-# noinspection PyUnresolvedReferences
 from es.utils.ObStat import ObStat
 from es.utils.TrainingResult import TrainingResult, RewardResult
 from es.utils.reporters import LoggerReporter, ReporterSet, StdoutReporter, MLFlowReporter
@@ -55,10 +55,10 @@ if __name__ == '__main__':
     def r_fn(model: torch.nn.Module, e: gym.Env, max_steps: int, r: np.random.RandomState = None) -> TrainingResult:
         save_obs = (r.random() if r is not None else np.random.random()) < cfg.policy.save_obs_chance
         rews, behv, obs = gym_runner.run_model(model, e, max_steps, r, save_obs)
-        # return DistResult(rews, behv, obs)
-        # return XDistResult(rews, behv, obs)
         return RewardResult(rews, behv, obs)
 
 
     for gen in range(cfg.general.gens):
         tr = es.step(cfg, comm, policy, optim, nt, env, r_fn, rs, rank_fn, obstat, reporter)
+
+    mlflow.end_run()  # in the case where mlflow is the reporter, just ending its run
