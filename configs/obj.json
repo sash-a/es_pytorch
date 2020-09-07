@@ -17,7 +17,7 @@
   },
 
   "general": {
-    "name": "hopper_mujoco",
+    "name": "  _mujoco",
 
     "gens": 2000,
     "eps_per_gen": 200,

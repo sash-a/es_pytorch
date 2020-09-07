@@ -12,13 +12,13 @@ sumobstat_op = MPI.Op.Create(sum_obstat, commute=True)
 
 class ObStat:
     def __init__(self, shape, eps):
-        self.sum = np.zeros(shape, dtype=np.float32)
-        self.sumsq = np.full(shape, eps, dtype=np.float32)
-        self.count = eps
+        self.sum: np.ndarray = np.zeros(shape, dtype=np.float64)
+        self.sumsq: np.ndarray = np.full(shape, eps, dtype=np.float64)
+        self.count: float = eps
 
-    def inc(self, s, ssq, c):
-        self.sum += s
-        self.sumsq += ssq
+    def inc(self, s: np.ndarray, ssq: np.ndarray, c: float):
+        self.sum += s.astype(np.float64)
+        self.sumsq += ssq.astype(np.float64)
         self.count += c
 
     def __iadd__(self, other):

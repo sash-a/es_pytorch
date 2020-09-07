@@ -31,15 +31,13 @@ if __name__ == '__main__':
     # initializing policy, optimizer, noise and env
     env: gym.Env = gym.make(cfg.env.name)
     obstat: ObStat = ObStat(env.observation_space.shape, 1e-2)  # eps to prevent dividing by zero at the beginning
-    policy: Policy = Policy(
-        FullyConnected(np.prod(env.observation_space.shape),
-                       np.prod(env.action_space.shape),
-                       256,
-                       2,
-                       torch.nn.Tanh,
-                       obstat,
-                       cfg.policy),
-        cfg.noise.std)
+    nn = FullyConnected(np.prod(env.observation_space.shape),
+                        np.prod(env.action_space.shape),
+                        256,
+                        2,
+                        torch.nn.Tanh,
+                        cfg.policy)
+    policy: Policy = Policy(nn, cfg.noise.std)
     optim: Optimizer = Adam(policy, cfg.general.lr)
     nt: NoiseTable = NoiseTable.create_shared(comm, cfg.noise.table_size, len(policy), cfg.noise.seed)
 
@@ -59,6 +57,7 @@ if __name__ == '__main__':
 
 
     for gen in range(cfg.general.gens):
+        nn.set_ob_mean_std(obstat.mean, obstat.std)
         tr = es.step(cfg, comm, policy, optim, nt, env, r_fn, rs, rank_fn, obstat, reporter)
 
     mlflow.end_run()  # in the case where mlflow is the reporter, just ending its run
