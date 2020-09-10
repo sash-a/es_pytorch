@@ -19,6 +19,7 @@ from es.utils.utils import moo_mean_rank, compute_centered_ranks
 
 if __name__ == '__main__':
     comm: MPI.Comm = MPI.COMM_WORLD
+    gym.logger.set_level(40)
 
     cfg_file = utils.parse_args()
     cfg = utils.load_config(cfg_file)
@@ -49,6 +50,9 @@ if __name__ == '__main__':
 
     rank_fn = partial(moo_mean_rank, rank_fn=compute_centered_ranks)
 
+    best_rew = -np.inf
+    best_dist = -np.inf
+
 
     def r_fn(model: torch.nn.Module, e: gym.Env, max_steps: int, r: np.random.RandomState = None) -> TrainingResult:
         save_obs = (r.random() if r is not None else np.random.random()) < cfg.policy.save_obs_chance
@@ -58,6 +62,14 @@ if __name__ == '__main__':
 
     for gen in range(cfg.general.gens):
         nn.set_ob_mean_std(obstat.mean, obstat.std)
-        tr = es.step(cfg, comm, policy, optim, nt, env, r_fn, rs, rank_fn, obstat, reporter)
+        tr, gen_obstat = es.step(cfg, comm, policy, optim, nt, env, r_fn, rs, rank_fn, reporter)
+        obstat += gen_obstat  # adding the new observations to the global obstat
+
+        # Saving policy if it obtained a better reward or distance
+        dist = np.linalg.norm(np.array(tr.behaviour[-3:-1]))
+        if tr.rew > best_rew or dist > best_dist:
+            best_rew = max(tr.rew, best_rew)
+            best_dist = max(dist, best_dist)
+            policy.save(f'saved/{cfg.general.name}', str(gen))
 
     mlflow.end_run()  # in the case where mlflow is the reporter, just ending its run

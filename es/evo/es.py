@@ -32,8 +32,7 @@ def step(cfg,
          fit_fn: Callable[[Module, gym.Env, int, Optional[RandomState]], TrainingResult],
          rs: RandomState = np.random.RandomState(),
          rank_fn: Callable[[Sequence[ndarray]], ndarray] = compute_centered_ranks,
-         obstat: Optional[ObStat] = None,
-         reporter: Reporter = StdoutReporter(MPI.COMM_WORLD)) -> TrainingResult:
+         reporter: Reporter = StdoutReporter(MPI.COMM_WORLD)) -> [TrainingResult, ObStat]:
     """
     Runs a single generation of ES
     :param fit_fn: Evaluates the policy returns a TrainingResult
@@ -44,6 +43,7 @@ def step(cfg,
     eps_per_proc = int((cfg.general.eps_per_gen / comm.size) / 2)
 
     gen_start = time.time()
+    gen_obstat = ObStat(env.observation_space.shape, 0)
     reporter.start_gen()
     results_pos, results_neg, inds = [], [], []
 
@@ -53,8 +53,8 @@ def step(cfg,
         # for each noise ind sampled, both add and subtract the noise
         results_pos.append(fit_fn(policy.pheno(noise), env, cfg.env.max_steps, rs))
         results_neg.append(fit_fn(policy.pheno(-noise), env, cfg.env.max_steps, rs))
-        obstat.inc(*results_pos[-1].ob_sum_sq_cnt)
-        obstat.inc(*results_neg[-1].ob_sum_sq_cnt)
+        gen_obstat.inc(*results_pos[-1].ob_sum_sq_cnt)
+        gen_obstat.inc(*results_neg[-1].ob_sum_sq_cnt)
 
     n_objectives = len(results_pos[0].result)
 
@@ -63,13 +63,13 @@ def step(cfg,
     ranked_fits = rank_fn(np.concatenate((fits_pos, fits_neg)))
     ranked_fits = ranked_fits[:len(fits_pos)] - ranked_fits[len(fits_pos):]
     noise_inds = results[:, -1]
-    obstat.mpi_inc(comm)
+    gen_obstat.mpi_inc(comm)
 
     _approx_grad(ranked_fits, noise_inds, nt, policy.flat_params, optim, cfg)
     noiseless_result = fit_fn(policy.pheno(np.zeros(len(policy))), env, cfg.env.max_steps, rs)
-    _report(reporter, np.concatenate((fits_pos, fits_neg), 0), policy, noiseless_result, gen_start)
+    reporter.end_gen(np.concatenate((fits_pos, fits_neg), 0), noiseless_result, policy, time.time() - gen_start)
 
-    return noiseless_result
+    return noiseless_result, gen_obstat
 
 
 def _share_results(comm: MPI.Comm,
@@ -89,9 +89,3 @@ def _approx_grad(ranked_fits: ndarray, inds: ndarray, nt: NoiseTable, flat_param
     """approximating gradient and update policy params"""
     grad = scale_noise(ranked_fits, inds, nt, cfg.general.batch_size) / cfg.general.eps_per_gen
     optim.step(cfg.general.l2coeff * flat_params - grad)
-
-
-def _report(rep: Reporter, fits: ndarray, policy: Policy, noiseless_result: TrainingResult, start: float):
-    rep.report_noiseless(noiseless_result, policy)
-    rep.report_fits(fits)
-    rep.end_gen(time.time() - start)

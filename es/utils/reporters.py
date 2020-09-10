@@ -20,16 +20,7 @@ class Reporter(ABC):
         pass
 
     @abstractmethod
-    def report_fits(self, fits: np.ndarray):
-        pass
-
-    @abstractmethod
-    def report_noiseless(self, tr: TrainingResult, noiseless_policy: Policy):
-        """Reports the fitness of a evaluation using no noise from the table and noiseless actions"""
-        pass
-
-    @abstractmethod
-    def end_gen(self, time: float):
+    def end_gen(self, fits: np.ndarray, noiseless_tr: TrainingResult, noiseless_policy: Policy, time: float):
         pass
 
 
@@ -37,21 +28,13 @@ class ReporterSet(Reporter):
     def __init__(self, *reporters: Reporter):
         self.reporters = reporters
 
-    def report_fits(self, fits: np.ndarray):
-        for reporter in self.reporters:
-            reporter.report_fits(fits)
-
     def start_gen(self):
         for reporter in self.reporters:
             reporter.start_gen()
 
-    def report_noiseless(self, tr: TrainingResult, noiseless_policy: Policy):
+    def end_gen(self, fits: np.ndarray, noiseless_tr: TrainingResult, noiseless_policy: Policy, time: float):
         for reporter in self.reporters:
-            reporter.report_noiseless(tr, noiseless_policy)
-
-    def end_gen(self, time: float):
-        for reporter in self.reporters:
-            reporter.end_gen(time)
+            reporter.end_gen(fits, noiseless_tr, noiseless_policy, time)
 
 
 class MPIReporter(Reporter, ABC):
@@ -62,34 +45,16 @@ class MPIReporter(Reporter, ABC):
         if self.comm.rank == 0:
             self._start_gen()
 
-    def report_fits(self, fits: np.ndarray):
+    def end_gen(self, fits: np.ndarray, noiseless_tr: TrainingResult, noiseless_policy: Policy, time: float):
         if self.comm.rank == 0:
-            self._report_fits(fits)
-
-    def report_noiseless(self, tr: TrainingResult, noiseless_policy: Policy):
-        """Reports the fitness of a evaluation using no noise from the table and noiseless actions"""
-        if self.comm.rank == 0:
-            self._report_noiseless(tr, noiseless_policy)
-
-    def end_gen(self, time: float):
-        if self.comm.rank == 0:
-            self._end_gen(time)
+            self._end_gen(fits, noiseless_tr, noiseless_policy, time)
 
     @abstractmethod
     def _start_gen(self):
         pass
 
     @abstractmethod
-    def _report_fits(self, fits: np.ndarray):
-        pass
-
-    @abstractmethod
-    def _report_noiseless(self, tr: TrainingResult, noiseless_policy: Policy):
-        """Reports the fitness of a evaluation using no noise from the table and noiseless actions"""
-        pass
-
-    @abstractmethod
-    def _end_gen(self, time: float):
+    def _end_gen(self, fits: np.ndarray, noiseless_tr: TrainingResult, noiseless_policy: Policy, time: float):
         pass
 
 
@@ -104,22 +69,20 @@ class StdoutReporter(MPIReporter):
               f'----------------------------------------'
               f'\ngen:{self.gen}')
 
-    def _report_fits(self, fits: np.ndarray):
+    def _end_gen(self, fits: np.ndarray, noiseless_tr: TrainingResult, noiseless_policy: Policy, time: float):
         for i, col in enumerate(fits.T):
             # Objectives are grouped by column so this finds the avg and max of each objective
             print(f'obj {i} avg:{np.mean(col):0.2f}')
             print(f'obj {i} max:{np.max(col):0.2f}')
 
-    def _report_noiseless(self, tr: TrainingResult, noiseless_policy: Policy):
-        print(f'fit:{tr.result}')
+        print(f'fit:{noiseless_tr.result}')
         # Calculating distance traveled (ignoring height dim). Assumes starting at 0, 0
-        dist = np.linalg.norm(np.array(tr.behaviour[-3:-1]))
-        rew = np.sum(tr.rewards)
+        dist = np.linalg.norm(np.array(noiseless_tr.behaviour[-3:-1]))
+        rew = np.sum(noiseless_tr.rewards)
 
         print(f'dist:{dist}')
         print(f'rew:{rew}')
 
-    def _end_gen(self, time: float):
         print(f'time:{time:0.2f}')
         self.gen += 1
 
@@ -143,27 +106,20 @@ class LoggerReporter(MPIReporter):
     def _start_gen(self):
         logging.info(f'gen:{self.gen}')
 
-    def _report_fits(self, fits: np.ndarray):
+    def _end_gen(self, fits: np.ndarray, noiseless_tr: TrainingResult, noiseless_policy: Policy, time: float):
         for i, col in enumerate(fits.T):
             # Objectives are grouped by column so this finds the avg and max of each objective
             logging.info(f'obj {i} avg:{np.mean(col):0.2f}')
             logging.info(f'obj {i} max:{np.max(col):0.2f}')
 
-    def _report_noiseless(self, tr: TrainingResult, noiseless_policy: Policy):
-        logging.info(f'fit:{tr.result}')
+        logging.info(f'fit:{noiseless_tr.result}')
         # Calculating distance traveled (ignoring height dim). Assumes starting at 0, 0
-        dist = np.linalg.norm(np.array(tr.behaviour[-3:-1]))
-        rew = np.sum(tr.rewards)
+        dist = np.linalg.norm(np.array(noiseless_tr.behaviour[-3:-1]))
+        rew = np.sum(noiseless_tr.rewards)
 
         logging.info(f'dist:{dist}')
         logging.info(f'rew:{rew}')
 
-        if rew > self.best_rew or dist > self.best_dist:
-            self.best_rew = max(rew, self.best_rew)
-            self.best_dist = max(dist, self.best_dist)
-            noiseless_policy.save(f'saved/{self.cfg.general.name}', str(self.gen))
-
-    def _end_gen(self, time: float):
         logging.info(f'time:{time:0.2f}')
         self.gen += 1
 
@@ -184,19 +140,17 @@ class MLFlowReporter(MPIReporter):
     def _start_gen(self):
         pass
 
-    def _report_fits(self, fits: np.ndarray):
+    def _end_gen(self, fits: np.ndarray, noiseless_tr: TrainingResult, noiseless_policy: Policy, time: float):
         for i, col in enumerate(fits.T):
             # Objectives are grouped by column so this finds the avg and max of each objective
             log_metric(f'obj {i} avg', np.mean(col), self.gen)
             log_metric(f'obj {i} max', np.max(col), self.gen)
 
-    def _report_noiseless(self, tr: TrainingResult, noiseless_policy: Policy):
         # Calculating distance traveled (ignoring height dim). Assumes starting at 0, 0
-        dist = np.linalg.norm(np.array(tr.behaviour[-3:-1]))
-        rew = np.sum(tr.rewards)
+        dist = np.linalg.norm(np.array(noiseless_tr.behaviour[-3:-1]))
+        rew = np.sum(noiseless_tr.rewards)
 
         log_metric('dist', dist, self.gen)
         log_metric('rew', rew, self.gen)
 
-    def _end_gen(self, time: float):
         self.gen += 1

@@ -1,6 +1,6 @@
 {
   "env": {
-    "name": "Hopper-v3",
+    "name": "HopperBulletEnv-v0",
     "max_steps": 2000
   },
 
@@ -17,10 +17,10 @@
   },
 
   "general": {
-    "name": "  _mujoco",
+    "name": "hopper_bullet",
 
     "gens": 2000,
-    "eps_per_gen": 200,
+    "eps_per_gen": 960,
     "eps_per_policy": 1,
     "n_policies": 1,
 
