@@ -7,10 +7,12 @@ from es.utils.novelty import novelty
 
 
 class TrainingResult(ABC):
-    def __init__(self, rewards: Sequence[float], behaviour: Sequence[float], obs: np.ndarray, *args, **kwargs):
+    def __init__(self, rewards: Sequence[float], behaviour: Sequence[float], obs: np.ndarray, steps: int,
+                 *args, **kwargs):
         self.rewards: Sequence[float] = rewards
         self.behaviour: Sequence[float] = behaviour
         self.obs: np.ndarray = obs
+        self.steps = steps
 
     @property
     def ob_sum_sq_cnt(self) -> Tuple[np.ndarray, np.ndarray, int]:
@@ -25,16 +27,16 @@ class TrainingResult(ABC):
 
 
 class RewardResult(TrainingResult):
-    def __init__(self, rewards: Sequence[float], behaviour: Sequence[float], obs: np.ndarray):
-        super().__init__(rewards, behaviour, obs)
+    def __init__(self, rewards: Sequence[float], behaviour: Sequence[float], obs: np.ndarray, steps: int):
+        super().__init__(rewards, behaviour, obs, steps)
 
     def get_result(self) -> List[float]:
         return [sum(self.rewards)]
 
 
 class DistResult(TrainingResult):
-    def __init__(self, rewards: Sequence[float], behaviour: Sequence[float], obs: np.ndarray):
-        super().__init__(rewards, behaviour, obs)
+    def __init__(self, rewards: Sequence[float], behaviour: Sequence[float], obs: np.ndarray, steps: int):
+        super().__init__(rewards, behaviour, obs, steps)
 
     def get_result(self) -> List[float]:
         return [np.linalg.norm(self.behaviour[-3:-1])]
@@ -46,9 +48,9 @@ class XDistResult(DistResult):
 
 
 class NSResult(TrainingResult):
-    def __init__(self, rewards: Sequence[float], behaviour: Sequence[float], obs: np.ndarray, archive: np.ndarray,
-                 k: int):
-        super().__init__(rewards, behaviour, obs)
+    def __init__(self, rewards: Sequence[float], behaviour: Sequence[float], obs: np.ndarray, steps: int,
+                 archive: np.ndarray, k: int):
+        super().__init__(rewards, behaviour, obs, steps)
         self.archive = archive
         self.k = k
 
@@ -57,9 +59,9 @@ class NSResult(TrainingResult):
 
 
 class NSRResult(NSResult):
-    def __init__(self, rewards: Sequence[float], behaviour: Sequence[float], obs: np.ndarray, archive: np.ndarray,
-                 k: int):
-        super().__init__(rewards, behaviour, obs, archive, k)
+    def __init__(self, rewards: Sequence[float], behaviour: Sequence[float], obs: np.ndarray, steps: int,
+                 archive: np.ndarray, k: int):
+        super().__init__(rewards, behaviour, obs, steps, archive, k)
 
     def get_result(self) -> List[float]:
         return [self.behaviour[-3], super().get_result()[0]]

@@ -1,3 +1,4 @@
+import logging
 from typing import List, Tuple
 
 import gym
@@ -12,7 +13,7 @@ def run_model(model: torch.nn.Module,
               max_steps: int,
               rs: np.random.RandomState = None,
               save_obs: bool = False,
-              render: bool = False) -> Tuple[List[float], List[float], np.ndarray]:
+              render: bool = False) -> Tuple[List[float], List[float], np.ndarray, int]:
     """
     Evaluates model on the provided env
     :returns: tuple of rewards earned and positions at each timestep position list is always of length `max_steps`
@@ -41,9 +42,11 @@ def run_model(model: torch.nn.Module,
 
     if not save_obs:
         obs.append(np.zeros(ob.shape))
+    else:
+        logging.debug(f'saving obs')
 
     behv += behv[-3:] * (max_steps - int(len(behv) / 3))  # extending the behaviour vector to have `max_steps` elements
-    return rews, behv, np.array(obs)
+    return rews, behv, np.array(obs), step
 
 
 def _get_pos(env):

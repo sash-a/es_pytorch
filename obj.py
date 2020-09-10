@@ -1,3 +1,4 @@
+import logging
 from functools import partial
 
 import gym
@@ -56,14 +57,15 @@ if __name__ == '__main__':
 
     def r_fn(model: torch.nn.Module, e: gym.Env, max_steps: int, r: np.random.RandomState = None) -> TrainingResult:
         save_obs = (r.random() if r is not None else np.random.random()) < cfg.policy.save_obs_chance
-        rews, behv, obs = gym_runner.run_model(model, e, max_steps, r, save_obs)
-        return RewardResult(rews, behv, obs)
+        rews, behv, obs, steps = gym_runner.run_model(model, e, max_steps, r, save_obs)
+        return RewardResult(rews, behv, obs, steps)
 
 
     for gen in range(cfg.general.gens):
         nn.set_ob_mean_std(obstat.mean, obstat.std)
         tr, gen_obstat = es.step(cfg, comm, policy, optim, nt, env, r_fn, rs, rank_fn, reporter)
         obstat += gen_obstat  # adding the new observations to the global obstat
+        logging.debug(f'global obstat {comm.rank}: {obstat}')
 
         # Saving policy if it obtained a better reward or distance
         dist = np.linalg.norm(np.array(tr.behaviour[-3:-1]))
