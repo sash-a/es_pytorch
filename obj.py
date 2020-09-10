@@ -67,8 +67,9 @@ if __name__ == '__main__':
 
         # Saving policy if it obtained a better reward or distance
         dist = np.linalg.norm(np.array(tr.behaviour[-3:-1]))
-        if tr.rew > best_rew or dist > best_dist:
-            best_rew = max(tr.rew, best_rew)
+        rew = np.sum(tr.rewards)
+        if rew > best_rew or dist > best_dist:
+            best_rew = max(rew, best_rew)
             best_dist = max(dist, best_dist)
             policy.save(f'saved/{cfg.general.name}', str(gen))
 
