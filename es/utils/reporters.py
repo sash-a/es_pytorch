@@ -4,6 +4,7 @@ import json
 import logging
 from abc import ABC, abstractmethod
 from datetime import datetime
+from typing import Tuple
 
 import numpy as np
 from mlflow import log_params, log_metric, set_experiment, start_run
@@ -14,13 +15,19 @@ from es.evo.policy import Policy
 from es.utils.TrainingResult import TrainingResult
 
 
+def calc_dist_rew(tr: TrainingResult) -> Tuple[float, float]:
+    # Calculating distance traveled (ignoring height dim). Assumes starting at 0, 0
+    return np.linalg.norm(np.array(tr.behaviour[-3:-1])), np.sum(tr.rewards)
+
+
 class Reporter(ABC):
     @abstractmethod
     def start_gen(self):
         pass
 
     @abstractmethod
-    def end_gen(self, fits: np.ndarray, noiseless_tr: TrainingResult, noiseless_policy: Policy, time: float):
+    def end_gen(self, fits: np.ndarray, noiseless_tr: TrainingResult, noiseless_policy: Policy, steps: int,
+                time: float):
         pass
 
 
@@ -32,9 +39,10 @@ class ReporterSet(Reporter):
         for reporter in self.reporters:
             reporter.start_gen()
 
-    def end_gen(self, fits: np.ndarray, noiseless_tr: TrainingResult, noiseless_policy: Policy, time: float):
+    def end_gen(self, fits: np.ndarray, noiseless_tr: TrainingResult, noiseless_policy: Policy, steps: int,
+                time: float):
         for reporter in self.reporters:
-            reporter.end_gen(fits, noiseless_tr, noiseless_policy, time)
+            reporter.end_gen(fits, noiseless_tr, noiseless_policy, steps, time)
 
 
 class MPIReporter(Reporter, ABC):
@@ -45,16 +53,18 @@ class MPIReporter(Reporter, ABC):
         if self.comm.rank == 0:
             self._start_gen()
 
-    def end_gen(self, fits: np.ndarray, noiseless_tr: TrainingResult, noiseless_policy: Policy, time: float):
+    def end_gen(self, fits: np.ndarray, noiseless_tr: TrainingResult, noiseless_policy: Policy, steps: int,
+                time: float):
         if self.comm.rank == 0:
-            self._end_gen(fits, noiseless_tr, noiseless_policy, time)
+            self._end_gen(fits, noiseless_tr, noiseless_policy, steps, time)
 
     @abstractmethod
     def _start_gen(self):
         pass
 
     @abstractmethod
-    def _end_gen(self, fits: np.ndarray, noiseless_tr: TrainingResult, noiseless_policy: Policy, time: float):
+    def _end_gen(self, fits: np.ndarray, noiseless_tr: TrainingResult, noiseless_policy: Policy, steps: int,
+                 time: float):
         pass
 
 
@@ -63,26 +73,29 @@ class StdoutReporter(MPIReporter):
         super().__init__(comm)
         if comm.rank == 0:
             self.gen = 0
+            self.cum_steps = 0
 
     def _start_gen(self):
         print(f'\n\n'
               f'----------------------------------------'
               f'\ngen:{self.gen}')
 
-    def _end_gen(self, fits: np.ndarray, noiseless_tr: TrainingResult, noiseless_policy: Policy, time: float):
+    def _end_gen(self, fits: np.ndarray, noiseless_tr: TrainingResult, noiseless_policy: Policy, steps: int,
+                 time: float):
         for i, col in enumerate(fits.T):
             # Objectives are grouped by column so this finds the avg and max of each objective
             print(f'obj {i} avg:{np.mean(col):0.2f}')
             print(f'obj {i} max:{np.max(col):0.2f}')
 
         print(f'fit:{noiseless_tr.result}')
-        # Calculating distance traveled (ignoring height dim). Assumes starting at 0, 0
-        dist = np.linalg.norm(np.array(noiseless_tr.behaviour[-3:-1]))
-        rew = np.sum(noiseless_tr.rewards)
+        dist, rew = calc_dist_rew(noiseless_tr)
+        self.cum_steps += steps
 
         print(f'dist:{dist}')
         print(f'rew:{rew}')
 
+        print(f'steps:{steps}')
+        print(f'cum steps:{self.cum_steps}')
         print(f'time:{time:0.2f}')
         self.gen += 1
 
@@ -102,24 +115,27 @@ class LoggerReporter(MPIReporter):
 
             self.best_rew = 0
             self.best_dist = 0
+            self.cum_steps = 0
 
     def _start_gen(self):
         logging.info(f'gen:{self.gen}')
 
-    def _end_gen(self, fits: np.ndarray, noiseless_tr: TrainingResult, noiseless_policy: Policy, time: float):
+    def _end_gen(self, fits: np.ndarray, noiseless_tr: TrainingResult, noiseless_policy: Policy, steps: int,
+                 time: float):
         for i, col in enumerate(fits.T):
             # Objectives are grouped by column so this finds the avg and max of each objective
             logging.info(f'obj {i} avg:{np.mean(col):0.2f}')
             logging.info(f'obj {i} max:{np.max(col):0.2f}')
 
         logging.info(f'fit:{noiseless_tr.result}')
-        # Calculating distance traveled (ignoring height dim). Assumes starting at 0, 0
-        dist = np.linalg.norm(np.array(noiseless_tr.behaviour[-3:-1]))
-        rew = np.sum(noiseless_tr.rewards)
+        dist, rew = calc_dist_rew(noiseless_tr)
+        self.cum_steps += steps
 
         logging.info(f'dist:{dist}')
         logging.info(f'rew:{rew}')
 
+        logging.info(f'steps:{steps}')
+        logging.info(f'cum steps:{self.cum_steps}')
         logging.info(f'time:{time:0.2f}')
         self.gen += 1
 
@@ -129,28 +145,32 @@ class MLFlowReporter(MPIReporter):
         super().__init__(comm)
 
         if comm.rank == 0:
-            # MLFlow tracking
             set_experiment(cfg.env.name)
             start_run(run_name=cfg.general.name)
             log_params(json_normalize(json.load(open(cfg_file))).to_dict(orient='records')[0])
+
             self.gen = 0
             self.best_rew = 0
             self.best_dist = 0
+            self.cum_steps = 0
 
     def _start_gen(self):
         pass
 
-    def _end_gen(self, fits: np.ndarray, noiseless_tr: TrainingResult, noiseless_policy: Policy, time: float):
+    def _end_gen(self, fits: np.ndarray, noiseless_tr: TrainingResult, noiseless_policy: Policy, steps: int,
+                 time: float):
         for i, col in enumerate(fits.T):
             # Objectives are grouped by column so this finds the avg and max of each objective
             log_metric(f'obj {i} avg', np.mean(col), self.gen)
             log_metric(f'obj {i} max', np.max(col), self.gen)
 
-        # Calculating distance traveled (ignoring height dim). Assumes starting at 0, 0
-        dist = np.linalg.norm(np.array(noiseless_tr.behaviour[-3:-1]))
-        rew = np.sum(noiseless_tr.rewards)
+        dist, rew = calc_dist_rew(noiseless_tr)
+        self.cum_steps += steps
 
         log_metric('dist', dist, self.gen)
         log_metric('rew', rew, self.gen)
+        logging.info(f'steps:{steps}')
+        logging.info(f'cum steps:{self.cum_steps}')
+        logging.info(f'time:{time:0.2f}')
 
         self.gen += 1

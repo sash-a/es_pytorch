@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import logging
 import time
 from collections.abc import Callable
 from typing import List, Sequence, Optional
@@ -64,15 +63,12 @@ def step(cfg,
     ranked_fits = rank_fn(np.concatenate((fits_pos, fits_neg)))
     ranked_fits = ranked_fits[:len(fits_pos)] - ranked_fits[len(fits_pos):]
     noise_inds = results[:, -1]
-    total_steps = comm.allreduce(sum([tr.steps for tr in results_pos + results_neg]), op=MPI.SUM)
-    logging.debug(f'total steps:{total_steps}')
-    logging.debug(f'obstat before share {comm.rank}: {repr(gen_obstat)}')
+    steps = comm.allreduce(sum([tr.steps for tr in results_pos + results_neg]), op=MPI.SUM)
     gen_obstat.mpi_inc(comm)
-    logging.debug(f'obstat after share {comm.rank}: {repr(gen_obstat)}')
 
     _approx_grad(ranked_fits, noise_inds, nt, policy.flat_params, optim, cfg)
     noiseless_result = fit_fn(policy.pheno(np.zeros(len(policy))), env, cfg.env.max_steps, rs)
-    reporter.end_gen(np.concatenate((fits_pos, fits_neg), 0), noiseless_result, policy, time.time() - gen_start)
+    reporter.end_gen(np.concatenate((fits_pos, fits_neg), 0), noiseless_result, policy, steps, time.time() - gen_start)
 
     return noiseless_result, gen_obstat
 
