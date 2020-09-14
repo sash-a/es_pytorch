@@ -1,4 +1,3 @@
-import logging
 from typing import List, Tuple
 
 import gym
@@ -42,8 +41,6 @@ def run_model(model: torch.nn.Module,
 
     if not save_obs:
         obs.append(np.zeros(ob.shape))
-    else:
-        logging.debug(f'saving obs')
 
     behv += behv[-3:] * (max_steps - int(len(behv) / 3))  # extending the behaviour vector to have `max_steps` elements
     return rews, behv, np.array(obs), step
