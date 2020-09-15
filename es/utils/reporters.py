@@ -7,7 +7,7 @@ from datetime import datetime
 from typing import Tuple
 
 import numpy as np
-from mlflow import log_params, log_metric, set_experiment, start_run
+from mlflow import log_params, log_param, log_metric, set_experiment, start_run
 from mpi4py import MPI
 from pandas import json_normalize
 
@@ -30,6 +30,13 @@ class Reporter(ABC):
                 time: float):
         pass
 
+    @abstractmethod
+    def _print_fn(self, s: str):
+        pass
+
+    def print(self, s: str):
+        self._print_fn(s)
+
 
 class ReporterSet(Reporter):
     def __init__(self, *reporters: Reporter):
@@ -44,18 +51,27 @@ class ReporterSet(Reporter):
         for reporter in self.reporters:
             reporter.end_gen(fits, noiseless_tr, noiseless_policy, steps, time)
 
+    def _print_fn(self, s: str):
+        raise NotImplementedError('Reporter set does not have a print_fn it can only print')
+
+    def print(self, s: str):
+        for reporter in self.reporters:
+            reporter.print(s)
+
 
 class MPIReporter(Reporter, ABC):
+    ROOT = 0
+
     def __init__(self, comm: MPI.Comm):
         self.comm = comm
 
     def start_gen(self):
-        if self.comm.rank == 0:
+        if self.comm.rank == MPIReporter.ROOT:
             self._start_gen()
 
     def end_gen(self, fits: np.ndarray, noiseless_tr: TrainingResult, noiseless_policy: Policy, steps: int,
                 time: float):
-        if self.comm.rank == 0:
+        if self.comm.rank == MPIReporter.ROOT:
             self._end_gen(fits, noiseless_tr, noiseless_policy, steps, time)
 
     @abstractmethod
@@ -66,6 +82,10 @@ class MPIReporter(Reporter, ABC):
     def _end_gen(self, fits: np.ndarray, noiseless_tr: TrainingResult, noiseless_policy: Policy, steps: int,
                  time: float):
         pass
+
+    def print(self, s: str):
+        if self.comm.rank == MPIReporter.ROOT:
+            super().print(s)
 
 
 class StdoutReporter(MPIReporter):
@@ -98,6 +118,9 @@ class StdoutReporter(MPIReporter):
         print(f'cum steps:{self.cum_steps}')
         print(f'time:{time:0.2f}')
         self.gen += 1
+
+    def _print_fn(self, s: str):
+        print(s)
 
 
 class LoggerReporter(MPIReporter):
@@ -139,6 +162,9 @@ class LoggerReporter(MPIReporter):
         logging.info(f'time:{time:0.2f}')
         self.gen += 1
 
+    def _print_fn(self, s: str):
+        logging.info(s)
+
 
 class MLFlowReporter(MPIReporter):
     def __init__(self, comm: MPI.Comm, cfg_file: str, cfg):
@@ -174,3 +200,8 @@ class MLFlowReporter(MPIReporter):
         logging.info(f'time:{time:0.2f}')
 
         self.gen += 1
+
+    def _print_fn(self, s: str):
+        key_val = s.split(':')
+        if len(key_val) == 2:
+            log_param(key_val[0], key_val[1])

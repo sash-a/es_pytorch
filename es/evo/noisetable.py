@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-import logging
-from typing import Tuple
+from typing import Tuple, Optional
 
 import numpy as np
 from mpi4py import MPI
+
+from es.utils.reporters import Reporter
 
 
 def create_shared_arr(comm: MPI.Comm, size: int) -> np.ndarray:
@@ -56,7 +57,8 @@ class NoiseTable:
         return np.random.RandomState(seed).randn(size).astype(np.float32)
 
     @staticmethod
-    def create_shared(global_comm: MPI.Comm, size: int, n_params: int, seed=None) -> NoiseTable:
+    def create_shared(global_comm: MPI.Comm, size: int, n_params: int, reporter: Optional[Reporter] = None,
+                      seed=None) -> NoiseTable:
         """Shares a noise table across multiple nodes. Assumes that each node has at least 2 MPI processes"""
         local_comm: MPI.Comm = global_comm.Split_type(MPI.COMM_TYPE_SHARED)
         assert local_comm.size > 1
@@ -68,7 +70,7 @@ class NoiseTable:
 
         if global_comm.rank == 0:  # create and distribute seed
             seed = seed if seed is not None else np.random.randint(0, 10000)  # create seed if one is not provided
-            logging.info(f'nt seed:{seed}')
+            if reporter is not None: reporter.print(f'nt seed:{seed}')
             for i in range(n_nodes):
                 global_rank_to_send = global_comm.recv(source=MPI.ANY_SOURCE)  # recv global rank from each nodes proc 1
                 global_comm.send(seed, global_rank_to_send)  # send seed to that rank
