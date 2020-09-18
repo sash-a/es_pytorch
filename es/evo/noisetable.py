@@ -69,7 +69,7 @@ class NoiseTable:
         nt = NoiseTable(n_params, shared_arr)
 
         if global_comm.rank == 0:  # create and distribute seed
-            seed = seed if seed is not None else np.random.randint(0, 10000)  # create seed if one is not provided
+            seed = seed if seed is not None else np.random.randint(0, 1000000)  # create seed if one is not provided
             if reporter is not None: reporter.print(f'nt seed:{seed}')
             for i in range(n_nodes):
                 global_rank_to_send = global_comm.recv(source=MPI.ANY_SOURCE)  # recv global rank from each nodes proc 1

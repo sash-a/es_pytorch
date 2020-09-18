@@ -31,7 +31,7 @@ if __name__ == '__main__':
 
     # seeding
     # This seed must be different on each proc otherwise the same noise inds will be used
-    general_seed = (generate_seed() if cfg.general.seed is None else cfg.general.seed) + comm.rank
+    general_seed = (generate_seed() if cfg.general.seed is None else cfg.general.seed) + 10000 * comm.rank
     rs = np.random.RandomState(cfg.general.seed)
     # This seed must be the same on each proc as it determines the initial params
     policy_seed = generate_seed() if cfg.policy.seed is None else cfg.policy.seed
@@ -51,6 +51,7 @@ if __name__ == '__main__':
                         256,
                         2,
                         torch.nn.Tanh,
+                        env,
                         cfg.policy)
     policy: Policy = Policy(nn, cfg.noise.std)
     optim: Optimizer = Adam(policy, cfg.general.lr)
@@ -75,6 +76,10 @@ if __name__ == '__main__':
         nn.set_ob_mean_std(obstat.mean, obstat.std)
         tr, gen_obstat = es.step(cfg, comm, policy, optim, nt, env, r_fn, rs, rank_fn, reporter)
         obstat += gen_obstat  # adding the new observations to the global obstat
+
+        reporter.print(f'ob mean: {obstat.mean.mean()}')
+        reporter.print(f'ob std: {obstat.std.mean()}')
+        reporter.print(f'obs recorded: {obstat.count}')
 
         # Saving policy if it obtained a better reward or distance
         dist = np.linalg.norm(np.array(tr.behaviour[-3:-1]))

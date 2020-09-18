@@ -7,7 +7,7 @@ from datetime import datetime
 from typing import Tuple
 
 import numpy as np
-from mlflow import log_params, log_param, log_metric, set_experiment, start_run
+from mlflow import log_params, log_metric, set_experiment, start_run
 from mpi4py import MPI
 from pandas import json_normalize
 
@@ -195,13 +195,14 @@ class MLFlowReporter(MPIReporter):
 
         log_metric('dist', dist, self.gen)
         log_metric('rew', rew, self.gen)
-        logging.info(f'steps:{steps}')
-        logging.info(f'cum steps:{self.cum_steps}')
-        logging.info(f'time:{time:0.2f}')
+        log_metric(f'steps', steps, self.gen)
+        log_metric(f'cum steps', self.cum_steps, self.gen)
+        log_metric('time', time, self.gen)
 
         self.gen += 1
 
     def _print_fn(self, s: str):
-        key_val = s.split(':')
-        if len(key_val) == 2:
-            log_param(key_val[0], key_val[1])
+        # key_val = s.split(':')
+        # if len(key_val) == 2:
+        #     log_param(key_val[0], key_val[1])
+        pass
