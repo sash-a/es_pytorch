@@ -13,7 +13,7 @@ from es.nn.nn import FullyConnected
 from es.nn.optimizers import Adam, Optimizer
 from es.utils import utils, gym_runner
 from es.utils.ObStat import ObStat
-from es.utils.TrainingResult import TrainingResult, RewardResult
+from es.utils.TrainingResult import TrainingResult, RewardResult, XDistResult
 from es.utils.reporters import LoggerReporter, ReporterSet, StdoutReporter, MLFlowReporter
 from es.utils.utils import moo_mean_rank, compute_centered_ranks
 
@@ -29,22 +29,22 @@ if __name__ == '__main__':
     cfg_file = utils.parse_args()
     cfg = utils.load_config(cfg_file)
 
-    # seeding
-    # This seed must be different on each proc otherwise the same noise inds will be used
-    general_seed = (generate_seed() if cfg.general.seed is None else cfg.general.seed) + 10000 * comm.rank
-    rs = np.random.RandomState(cfg.general.seed)
-    # This seed must be the same on each proc as it determines the initial params
-    policy_seed = generate_seed() if cfg.policy.seed is None else cfg.policy.seed
-    torch.random.manual_seed(policy_seed)
-
     reporter = ReporterSet(
         LoggerReporter(comm, cfg, cfg.general.name),
         StdoutReporter(comm),
         MLFlowReporter(comm, cfg_file, cfg)
     )
 
-    # initializing policy, optimizer, noise and env
     env: gym.Env = gym.make(cfg.env.name)
+
+    # seeding
+    seed = (generate_seed() if cfg.general.seed is None else cfg.general.seed)
+    rs = np.random.RandomState(seed + 10000 * comm.rank)  # This seed must be different on each proc
+    torch.random.manual_seed(seed)  # This seed must be the same on each proc as it determines the initial params
+    env.seed(seed)
+    reporter.print(f'seed:{seed}')
+
+    # initializing policy, optimizer, noise and env
     obstat: ObStat = ObStat(env.observation_space.shape, 1e-2)  # eps to prevent dividing by zero at the beginning
     nn = FullyConnected(np.prod(env.observation_space.shape),
                         np.prod(env.action_space.shape),
@@ -53,12 +53,10 @@ if __name__ == '__main__':
                         torch.nn.Tanh,
                         env,
                         cfg.policy)
+
     policy: Policy = Policy(nn, cfg.noise.std)
     optim: Optimizer = Adam(policy, cfg.general.lr)
-    nt: NoiseTable = NoiseTable.create_shared(comm, cfg.noise.table_size, len(policy), reporter, cfg.noise.seed)
-
-    reporter.print(f'policy seed:{policy_seed}')
-    reporter.print(f'indexer seed:{general_seed}')
+    nt: NoiseTable = NoiseTable.create_shared(comm, cfg.noise.table_size, len(policy), reporter, seed)
 
     rank_fn = partial(moo_mean_rank, rank_fn=compute_centered_ranks)
 
@@ -69,16 +67,21 @@ if __name__ == '__main__':
     def r_fn(model: torch.nn.Module, e: gym.Env, max_steps: int, r: np.random.RandomState = None) -> TrainingResult:
         save_obs = (r.random() if r is not None else np.random.random()) < cfg.policy.save_obs_chance
         rews, behv, obs, steps = gym_runner.run_model(model, e, max_steps, r, save_obs)
+        return XDistResult(rews, behv, obs, steps)
+
+
+    def dist_fn(model: torch.nn.Module, e: gym.Env, max_steps: int, r: np.random.RandomState = None) -> TrainingResult:
+        save_obs = (r.random() if r is not None else np.random.random()) < cfg.policy.save_obs_chance
+        rews, behv, obs, steps = gym_runner.run_model(model, e, max_steps, r, save_obs)
         return RewardResult(rews, behv, obs, steps)
 
 
     for gen in range(cfg.general.gens):
         nn.set_ob_mean_std(obstat.mean, obstat.std)
-        tr, gen_obstat = es.step(cfg, comm, policy, optim, nt, env, r_fn, rs, rank_fn, reporter)
+        ranking_fn = dist_fn if gen < 200 else r_fn
+        tr, gen_obstat = es.step(cfg, comm, policy, optim, nt, env, ranking_fn, rs, rank_fn, reporter)
         obstat += gen_obstat  # adding the new observations to the global obstat
 
-        reporter.print(f'ob mean: {obstat.mean.mean()}')
-        reporter.print(f'ob std: {obstat.std.mean()}')
         reporter.print(f'obs recorded: {obstat.count}')
 
         # Saving policy if it obtained a better reward or distance

@@ -2,7 +2,7 @@ import gym
 import numpy as np
 from torch import nn, Tensor, clamp
 
-ob_clip = 2
+ob_clip = 5
 
 
 class FullyConnected(nn.Module):
