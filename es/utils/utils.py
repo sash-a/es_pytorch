@@ -1,6 +1,6 @@
 import argparse
 import json
-from collections import namedtuple
+from types import SimpleNamespace
 
 import numpy as np
 
@@ -105,6 +105,5 @@ def parse_args():
 
 
 def load_config(cfg_file: str):
-    """:returns: a named tuple from a json file"""
-    # noinspection PyArgumentList
-    return json.load(open(cfg_file), object_hook=lambda d: namedtuple('Cfg', d.keys())(*d.values()))
+    """:returns: a SimpleNamespace from a json file"""
+    return json.load(open(cfg_file), object_hook=lambda d: SimpleNamespace(**d))

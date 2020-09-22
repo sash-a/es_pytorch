@@ -16,7 +16,7 @@ class FullyConnected(nn.Module):
         layers += [nn.Linear(hidden_size, out_size), activation()]
 
         self.model = nn.Sequential(*layers)
-        self._action_std = policy_cfg.std
+        self._action_std = policy_cfg.ac_std
 
         self._obmean: np.ndarray = np.zeros(env.observation_space.shape)
         self._obstd: np.ndarray = np.ones(env.observation_space.shape)

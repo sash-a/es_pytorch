@@ -53,7 +53,9 @@ class Policy(torch.nn.Module):
             self._module.load_state_dict(d)
         return self._module
 
-    def pheno(self, noise: np.ndarray) -> torch.nn.Module:
+    def pheno(self, noise: np.ndarray = None) -> torch.nn.Module:
+        if noise is None:
+            noise = np.zeros(len(self))
         params = self.flat_params + self.std * noise
         self.set_nn_params(params)
 

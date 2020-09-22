@@ -7,8 +7,9 @@ from es.evo.policy import Policy
 
 
 class Optimizer(ABC):
-    def __init__(self, policy: Policy):
+    def __init__(self, policy: Policy, lr: float):
         self.policy: Policy = policy
+        self.lr: float = lr
         self.dim: int = len(policy)
         self.t: int = 0
 
@@ -29,28 +30,26 @@ class Optimizer(ABC):
 
 class ES(Optimizer):
     def __init__(self, policy: Policy, lr: float):
-        super().__init__(policy)
-        self.lr: float = lr
+        super().__init__(policy, lr)
 
     def _compute_step(self, globalg: np.ndarray):
         return (self.lr / self.policy.std) * globalg
 
 
 class SGD(Optimizer):
-    def __init__(self, policy: Policy, stepsize, momentum=0.9):
-        Optimizer.__init__(self, policy)
+    def __init__(self, policy: Policy, lr, momentum=0.9):
+        Optimizer.__init__(self, policy, lr)
         self.v = np.zeros(self.dim, dtype=np.float32)
-        self.stepsize, self.momentum = stepsize, momentum
+        self.momentum = momentum
 
     def _compute_step(self, globalg):
         self.v = self.momentum * self.v + (1. - self.momentum) * globalg
-        return -self.stepsize * self.v
+        return -self.lr * self.v
 
 
 class Adam(Optimizer):
-    def __init__(self, policy: Policy, stepsize, beta1=0.9, beta2=0.999, epsilon=1e-08):
-        Optimizer.__init__(self, policy)
-        self.stepsize = stepsize
+    def __init__(self, policy: Policy, lr, beta1=0.9, beta2=0.999, epsilon=1e-08):
+        Optimizer.__init__(self, policy, lr)
         self.beta1 = beta1
         self.beta2 = beta2
         self.epsilon = epsilon
@@ -58,7 +57,7 @@ class Adam(Optimizer):
         self.v = np.zeros(self.dim, dtype=np.float32)
 
     def _compute_step(self, globalgrad):
-        a = self.stepsize * np.sqrt(1 - self.beta2 ** self.t) / (1 - self.beta1 ** self.t)
+        a = self.lr * np.sqrt(1 - self.beta2 ** self.t) / (1 - self.beta1 ** self.t)
         self.m = self.beta1 * self.m + (1 - self.beta1) * globalgrad
         self.v = self.beta2 * self.v + (1 - self.beta2) * (globalgrad * globalgrad)
         step = -a * self.m / (np.sqrt(self.v) + self.epsilon)

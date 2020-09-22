@@ -39,8 +39,8 @@ def step(cfg,
     :param rank_fn: Takes in fitnesses from all agents and returns those fitnesses ranked. Must be multi-objective.
     :returns: TrainingResult of the noiseless policy at that generation
     """
-    assert cfg.general.eps_per_gen % comm.size == 0 and (cfg.general.eps_per_gen / comm.size) % 2 == 0
-    eps_per_proc = int((cfg.general.eps_per_gen / comm.size) / 2)
+    assert cfg.general.policies_per_gen % comm.size == 0 and (cfg.general.policies_per_gen / comm.size) % 2 == 0
+    eps_per_proc = int((cfg.general.policies_per_gen / comm.size) / 2)
 
     gen_start = time.time()
     gen_obstat = ObStat(env.observation_space.shape, 0)
@@ -88,5 +88,5 @@ def _share_results(comm: MPI.Comm,
 
 def _approx_grad(ranked_fits: ndarray, inds: ndarray, nt: NoiseTable, flat_params: ndarray, optim: Optimizer, cfg):
     """approximating gradient and update policy params"""
-    grad = scale_noise(ranked_fits, inds, nt, cfg.general.batch_size) / cfg.general.eps_per_gen
-    optim.step(cfg.general.l2coeff * flat_params - grad)
+    grad = scale_noise(ranked_fits, inds, nt, cfg.general.batch_size) / cfg.general.policies_per_gen
+    optim.step(cfg.policy.l2coeff * flat_params - grad)

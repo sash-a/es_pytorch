@@ -34,7 +34,7 @@ if __name__ == '__main__':
         Policy(FullyConnected(env.observation_space.shape[0], env.action_space.shape[0], 256, 2, torch.nn.Tanh,
                               cfg.policy), cfg.noise.std) for _ in range(cfg.general.n_policies)
     ]
-    optims: List[Optimizer] = [Adam(policy, cfg.general.lr) for policy in population]
+    optims: List[Optimizer] = [Adam(policy, cfg.policy.lr) for policy in population]
     nt: NoiseTable = NoiseTable.create_shared(comm, cfg.noise.table_size, len(population[0]), cfg.noise.seed)
     reporter = LoggerReporter(comm, cfg, cfg.general.name)
 
