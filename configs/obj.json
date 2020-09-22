@@ -17,6 +17,9 @@
     "lr_decay": 0.9999,
     "save_obs_chance": 0.01
   },
+  "experimental": {
+    "explore_with_large_noise": false
+  },
   "general": {
     "name": "hopper_bullet",
     "gens": 2000,

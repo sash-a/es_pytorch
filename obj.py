@@ -75,6 +75,8 @@ if __name__ == '__main__':
         return XDistResult(rews, behv, obs, steps)
 
 
+    time_since_best = 0
+    noise_std_inc = 0.01
     for gen in range(cfg.general.gens):
         nn.set_ob_mean_std(obstat.mean, obstat.std)
         reporter.print(f'noise std:{cfg.noise.std}')
@@ -83,14 +85,20 @@ if __name__ == '__main__':
         tr, gen_obstat = es.step(cfg, comm, policy, optim, nt, env, r_fn, rs, rank_fn, reporter)
         obstat += gen_obstat  # adding the new observations to the global obstat
 
-        cfg.noise.std = max(cfg.noise.std * cfg.noise.std_decay, cfg.noise.std_limit)
+        cfg.noise.std = policy.std = max(cfg.noise.std * cfg.noise.std_decay, cfg.noise.std_limit)
         cfg.policy.lr = optim.lr = max(cfg.policy.lr * cfg.policy.lr_decay, cfg.policy.lr_limit)
 
         reporter.print(f'obs recorded:{obstat.count}')
 
-        # Saving policy if it obtained a better reward or distance
         dist = np.linalg.norm(np.array(tr.behaviour[-3:-1]))
         rew = np.sum(tr.rewards)
+
+        # increasing noise if policy is stuck
+        time_since_best = 0 if rew > best_rew else time_since_best + 1
+        if time_since_best and cfg.experimental.explore_with_large_noise > 15:
+            cfg.noise.std = policy.std = policy.std + noise_std_inc
+
+        # Saving policy if it obtained a better reward or distance
         if rew > best_rew or dist > best_dist:
             best_rew = max(rew, best_rew)
             best_dist = max(dist, best_dist)
