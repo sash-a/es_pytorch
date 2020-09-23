@@ -58,13 +58,15 @@ if __name__ == '__main__':
     archive = None
     policies_best_fit = []
 
-    TR = NSRResult
     obstat: ObStat = ObStat(env.observation_space.shape, 1e-2)  # eps to prevent dividing by zero at the beginning
+    min_weight = 1e-3
+    best_rew = -np.inf
+    best_dist = -np.inf
 
 
     def ns_fn(model: torch.nn.Module, e: gym.Env, max_steps: int, r: np.random.RandomState = None) -> TrainingResult:
         rews, behv, obs, steps = gym_runner.run_model(model, e, max_steps, r)
-        return TR(rews, behv, obs, steps, archive, cfg.novelty.k)
+        return NSRResult(rews, behv, obs, steps, archive, cfg.novelty.k)
 
 
     # initializing the archive
@@ -72,9 +74,8 @@ if __name__ == '__main__':
     for policy in population:
         rews, behv, obs, steps = gym_runner.run_model(policy.pheno(np.zeros(len(policy))), env, cfg.env.max_steps, rs)
         archive = update_archive(comm, behv[-3:-1], archive)
-        initial_results.append(TR(rews, behv, obs, steps, archive, cfg.novelty.k))
+        initial_results.append(NSRResult(rews, behv, obs, steps, archive, cfg.novelty.k))
 
-    min_weight = 1e-3
     for initial_result in initial_results:
         initial_result = comm.scatter([max(min_weight, initial_result.result[0])] * comm.size)
         policies_best_fit.append(initial_result)
@@ -111,6 +112,16 @@ if __name__ == '__main__':
         if comm.rank == 0:
             logging.info(f'idx: {idx}')
             logging.info(f'w: {obj_weight[idx]}')
+
+        dist = np.linalg.norm(np.array(tr.behaviour[-3:-1]))
+        rew = np.sum(tr.rewards)
+
+        # Saving policy if it obtained a better reward or distance
+        if (rew > best_rew or dist > best_dist) and comm.rank == 0:
+            best_rew = max(rew, best_rew)
+            best_dist = max(dist, best_dist)
+            population[idx].save(f'saved/{cfg.general.name}', str(gen))
+            reporter.print(f'saving policy with rew:{rew:0.2f} and dist:{dist:0.2f}')
 
         # adding new behaviour and sharing archive
         archive = update_archive(comm, tr.behaviour[-3:-1], archive)
