@@ -1,9 +1,9 @@
-import logging
 import random
 from functools import partial
 from typing import List
 
 import gym
+import mlflow
 import numpy as np
 import torch
 from mpi4py import MPI
@@ -53,13 +53,12 @@ if __name__ == '__main__':
                                               cfg.general.seed)
 
     time_since_best = [0 for _ in range(cfg.general.n_policies)]
-    obj_weight = [0 for _ in range(cfg.general.n_policies)]
+    obj_weight = [1. for _ in range(cfg.general.n_policies)]  # (1 - obj_weight[i]) is the novelty weighting
 
     archive = None
     policies_best_fit = []
 
     obstat: ObStat = ObStat(env.observation_space.shape, 1e-2)  # eps to prevent dividing by zero at the beginning
-    min_weight = 1e-3
     best_rew = -np.inf
     best_dist = -np.inf
 
@@ -77,7 +76,7 @@ if __name__ == '__main__':
         initial_results.append(NSRResult(rews, behv, obs, steps, archive, cfg.novelty.k))
 
     for initial_result in initial_results:
-        initial_result = comm.scatter([max(min_weight, initial_result.result[0])] * comm.size)
+        initial_result = comm.scatter([max(1e-3, initial_result.result[0])] * comm.size)  # weights must be positive
         policies_best_fit.append(initial_result)
 
     for gen in range(cfg.general.gens):
@@ -88,16 +87,19 @@ if __name__ == '__main__':
         rank_fn = partial(moo_weighted_rank, w=obj_weight[idx], rank_fn=compute_centered_ranks)
         # running es
         tr, gen_obstat = es.step(cfg, comm, population[idx], optims[idx], nt, env, ns_fn, rs, rank_fn, reporter)
+        # sharing result and obstat
         tr = comm.scatter([tr] * comm.size)
         gen_obstat.mpi_inc(comm)
         obstat += gen_obstat
 
-        reporter.print(f'using policy:{idx}')
+        archive = update_archive(comm, tr.behaviour[-3:-1], archive)  # adding new behaviour and sharing archive
+
+        reporter.print(f'idx:{idx}')
         reporter.print(f'w:{obj_weight[idx]}')
         reporter.print(f'time since best:{time_since_best[idx]}')
 
         # updating the weighting for NSRA-ES
-        fit = tr.result[0]
+        fit = tr.result[0]  # tr.result[1] is novelty
         if fit > policies_best_fit[idx]:
             policies_best_fit[idx] = fit
             time_since_best[idx] = 0
@@ -107,21 +109,15 @@ if __name__ == '__main__':
 
         if time_since_best[idx] > cfg.nsra.max_time_since_best:
             obj_weight[idx] = max(0, obj_weight[idx] - cfg.nsra.weight_delta)
-            time_since_best[idx] = 0
-
-        if comm.rank == 0:
-            logging.info(f'idx: {idx}')
-            logging.info(f'w: {obj_weight[idx]}')
-
-        dist = np.linalg.norm(np.array(tr.behaviour[-3:-1]))
-        rew = np.sum(tr.rewards)
+            # time_since_best[idx] = 0
 
         # Saving policy if it obtained a better reward or distance
+        dist = np.linalg.norm(np.array(tr.behaviour[-3:-1]))
+        rew = np.sum(tr.rewards)
         if (rew > best_rew or dist > best_dist) and comm.rank == 0:
             best_rew = max(rew, best_rew)
             best_dist = max(dist, best_dist)
             population[idx].save(f'saved/{cfg.general.name}', str(gen))
             reporter.print(f'saving policy with rew:{rew:0.2f} and dist:{dist:0.2f}')
 
-        # adding new behaviour and sharing archive
-        archive = update_archive(comm, tr.behaviour[-3:-1], archive)
+    mlflow.end_run()  # in the case where mlflow is the reporter, ending its run
