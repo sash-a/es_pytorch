@@ -14,34 +14,43 @@ from es.evo.policy import Policy
 from es.nn.nn import FullyConnected
 from es.nn.optimizers import Adam, Optimizer
 from es.utils import utils, gym_runner
+from es.utils.ObStat import ObStat
 from es.utils.TrainingResult import TrainingResult, NSRResult
 from es.utils.novelty import update_archive
-from es.utils.reporters import LoggerReporter
-from es.utils.utils import compute_centered_ranks, moo_weighted_rank
+from es.utils.reporters import LoggerReporter, ReporterSet, StdoutReporter, MLFlowReporter
+from es.utils.utils import compute_centered_ranks, moo_weighted_rank, generate_seed
 
 if __name__ == '__main__':
     comm: MPI.Comm = MPI.COMM_WORLD
     gym.logger.set_level(40)
 
-    cfg = utils.load_config(utils.parse_args())
+    cfg_file = utils.parse_args()
+    cfg = utils.load_config(cfg_file)
 
-    # This is required for the moment, as parameter initialization needs to be deterministic across all processes
-    assert cfg.policy.seed is not None
-    torch.random.manual_seed(cfg.policy.seed)
-    rs = np.random.RandomState()  # this must not be seeded, otherwise all procs will use the same random noise
+    cfg.general.seed = (generate_seed(comm) if cfg.general.seed is None else cfg.general.seed)
+    torch.random.manual_seed(cfg.general.seed)
+    rs = np.random.RandomState(cfg.general.seed + 10000 * comm.rank)
+
+    reporter = ReporterSet(
+        LoggerReporter(comm, cfg, cfg.general.name),
+        StdoutReporter(comm),
+        MLFlowReporter(comm, cfg_file, cfg)
+    )
+    reporter.print(f'seed:{cfg.general.seed}')
 
     # initializing population, optimizers, noise and env
     env: gym.Env = gym.make(cfg.env.name)
 
     in_size, out_size = np.prod(env.observation_space.shape), np.prod(env.action_space.shape)
-    population: List[Policy] = [
-        Policy(FullyConnected(in_size, out_size, 256, 2, torch.nn.Tanh, cfg.policy),
-               cfg.noise.std) for _ in range(cfg.general.n_policies)
-    ]
+    population = []
+    nns = []
+    for _ in range(cfg.general.n_policies):
+        nns.append(FullyConnected(in_size, out_size, 256, 2, torch.nn.Tanh, env, cfg.policy))
+        population.append(Policy(nns[-1], cfg.noise.std))
 
     optims: List[Optimizer] = [Adam(policy, cfg.policy.lr) for policy in population]
-    nt: NoiseTable = NoiseTable.create_shared(comm, cfg.noise.table_size, len(population[0]), cfg.noise.seed)
-    reporter = LoggerReporter(comm, cfg, cfg.general.name)
+    nt: NoiseTable = NoiseTable.create_shared(comm, cfg.noise.table_size, len(population[0]), reporter,
+                                              cfg.general.seed)
 
     time_since_best = [0 for _ in range(cfg.general.n_policies)]
     obj_weight = [0 for _ in range(cfg.general.n_policies)]
@@ -50,19 +59,20 @@ if __name__ == '__main__':
     policies_best_fit = []
 
     TR = NSRResult
+    obstat: ObStat = ObStat(env.observation_space.shape, 1e-2)  # eps to prevent dividing by zero at the beginning
 
 
     def ns_fn(model: torch.nn.Module, e: gym.Env, max_steps: int, r: np.random.RandomState = None) -> TrainingResult:
-        rews, behv = gym_runner.run_model(model, e, max_steps, r)
-        return TR(rews, behv, archive, cfg.novelty.k)
+        rews, behv, obs, steps = gym_runner.run_model(model, e, max_steps, r)
+        return TR(rews, behv, obs, steps, archive, cfg.novelty.k)
 
 
     # initializing the archive
     initial_results = []
     for policy in population:
-        rews, behaviour = gym_runner.run_model(policy.pheno(np.zeros(len(policy))), env, cfg.env.max_steps, rs)
-        archive = update_archive(comm, behaviour[-3:-1], archive)
-        initial_results.append(TR(rews, behaviour, archive, cfg.novelty.k))
+        rews, behv, obs, steps = gym_runner.run_model(policy.pheno(np.zeros(len(policy))), env, cfg.env.max_steps, rs)
+        archive = update_archive(comm, behv[-3:-1], archive)
+        initial_results.append(TR(rews, behv, obs, steps, archive, cfg.novelty.k))
 
     for initial_result in initial_results:
         initial_result = comm.scatter([initial_result.result[0]] * comm.size)
@@ -72,10 +82,17 @@ if __name__ == '__main__':
         # picking the policy from the population
         idx = random.choices(list(range(len(policies_best_fit))), weights=policies_best_fit, k=1)[0]
         idx = comm.scatter([idx] * comm.size)
+        nns[idx].set_ob_mean_std(obstat.mean, obstat.std)
         rank_fn = partial(moo_weighted_rank, w=obj_weight[idx], rank_fn=compute_centered_ranks)
         # running es
-        tr = es.step(cfg, comm, population[idx], optims[idx], nt, env, ns_fn, rs, rank_fn, reporter)
+        tr, gen_obstat = es.step(cfg, comm, population[idx], optims[idx], nt, env, ns_fn, rs, rank_fn, reporter)
         tr = comm.scatter([tr] * comm.size)
+        gen_obstat.mpi_inc(comm)
+        obstat += gen_obstat
+
+        reporter.print(f'using policy:{idx}')
+        reporter.print(f'w:{obj_weight[idx]}')
+        reporter.print(f'time since best:{time_since_best[idx]}')
 
         # updating the weighting for NSRA-ES
         fit = tr.result[0]

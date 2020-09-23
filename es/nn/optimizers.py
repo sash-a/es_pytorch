@@ -28,12 +28,12 @@ class Optimizer(ABC):
         pass
 
 
-class ES(Optimizer):
+class SimpleES(Optimizer):
     def __init__(self, policy: Policy, lr: float):
         super().__init__(policy, lr)
 
     def _compute_step(self, globalg: np.ndarray):
-        return (self.lr / self.policy.std) * globalg
+        return self.lr * globalg
 
 
 class SGD(Optimizer):

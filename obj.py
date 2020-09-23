@@ -15,12 +15,7 @@ from es.utils import utils, gym_runner
 from es.utils.ObStat import ObStat
 from es.utils.TrainingResult import TrainingResult, RewardResult, XDistResult
 from es.utils.reporters import LoggerReporter, ReporterSet, StdoutReporter, MLFlowReporter
-from es.utils.utils import moo_mean_rank, compute_centered_ranks
-
-
-def generate_seed() -> int:
-    return comm.scatter([np.random.randint(0, 1000000)] * comm.size)
-
+from es.utils.utils import moo_mean_rank, compute_centered_ranks, generate_seed
 
 if __name__ == '__main__':
     comm: MPI.Comm = MPI.COMM_WORLD
@@ -38,7 +33,7 @@ if __name__ == '__main__':
     env: gym.Env = gym.make(cfg.env.name)
 
     # seeding
-    cfg.general.seed = (generate_seed() if cfg.general.seed is None else cfg.general.seed)
+    cfg.general.seed = (generate_seed(comm) if cfg.general.seed is None else cfg.general.seed)
     rs = np.random.RandomState(cfg.general.seed + 10000 * comm.rank)  # This seed must be different on each proc
     torch.random.manual_seed(cfg.general.seed)  # This seed must be the same on each proc for generating initial params
     env.seed(cfg.general.seed)

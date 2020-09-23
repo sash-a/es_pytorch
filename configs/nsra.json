@@ -3,42 +3,37 @@
     "name": "HopperBulletEnv-v0",
     "max_steps": 2000
   },
-
   "noise": {
-    "table_size": 100000000,
+    "table_size": 250000000,
     "std": 0.02,
-    "seed": null
+    "std_limit": 0.002,
+    "std_decay": 0.9999
   },
-
   "policy": {
-    "std": 0.01,
-    "seed": 123
+    "ac_std": 0.01,
+    "l2coeff": 0.005,
+    "lr": 0.01,
+    "lr_limit": 0.001,
+    "lr_decay": 0.9999,
+    "save_obs_chance": 0.01
   },
-
+  "experimental": {
+    "explore_with_large_noise": false
+  },
   "general": {
-    "name": "hopper_nsra",
-
-    "gens": 5000,
+    "name": "hopper_bullet_nsra",
+    "gens": 2000,
     "policies_per_gen": 960,
     "eps_per_policy": 1,
-    "n_policies": 5,
-
-    "seed": 456,
-
+    "n_policies": 1,
     "batch_size": 500,
-
-    "lr": 0.01,
-    "l2coeff": 0.005,
-
-    "save_interval": 100
+    "seed": null
   },
-
   "novelty": {
     "k": 10,
     "thresh": 2,
     "archive_size": -1
   },
-
   "nsra": {
     "weight_delta": 0.05,
     "max_time_since_best": 15

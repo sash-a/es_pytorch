@@ -107,3 +107,7 @@ def parse_args():
 def load_config(cfg_file: str):
     """:returns: a SimpleNamespace from a json file"""
     return json.load(open(cfg_file), object_hook=lambda d: SimpleNamespace(**d))
+
+
+def generate_seed(comm) -> int:
+    return comm.scatter([np.random.randint(0, 1000000)] * comm.size)
