@@ -18,12 +18,12 @@
     "save_obs_chance": 0.01
   },
   "experimental": {
-    "explore_with_large_noise": false
+    "explore_with_large_noise": true
   },
   "general": {
-    "name": "hopper_bullet",
+    "name": "hopper_bullet_decay",
     "gens": 2000,
-    "policies_per_gen": 960,
+    "policies_per_gen": 4800,
     "eps_per_policy": 1,
     "n_policies": 1,
     "batch_size": 500,

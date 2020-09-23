@@ -64,4 +64,4 @@ class NSRResult(NSResult):
         super().__init__(rewards, behaviour, obs, steps, archive, k)
 
     def get_result(self) -> List[float]:
-        return [self.behaviour[-3], super().get_result()[0]]
+        return [sum(self.rewards), super().get_result()[0]]

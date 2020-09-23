@@ -22,8 +22,8 @@
   },
   "general": {
     "name": "hopper_bullet_nsra",
-    "gens": 2000,
-    "policies_per_gen": 960,
+    "gens": 5000,
+    "policies_per_gen": 4800,
     "eps_per_policy": 1,
     "n_policies": 1,
     "batch_size": 500,

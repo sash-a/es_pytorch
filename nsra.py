@@ -74,8 +74,9 @@ if __name__ == '__main__':
         archive = update_archive(comm, behv[-3:-1], archive)
         initial_results.append(TR(rews, behv, obs, steps, archive, cfg.novelty.k))
 
+    min_weight = 1e-3
     for initial_result in initial_results:
-        initial_result = comm.scatter([initial_result.result[0]] * comm.size)
+        initial_result = comm.scatter([max(min_weight, initial_result.result[0])] * comm.size)
         policies_best_fit.append(initial_result)
 
     for gen in range(cfg.general.gens):
