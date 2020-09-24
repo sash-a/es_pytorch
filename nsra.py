@@ -109,7 +109,7 @@ if __name__ == '__main__':
 
         if time_since_best[idx] > cfg.nsra.max_time_since_best:
             obj_weight[idx] = max(0, obj_weight[idx] - cfg.nsra.weight_delta)
-            # time_since_best[idx] = 0
+            time_since_best[idx] = 0
 
         # Saving policy if it obtained a better reward or distance
         dist = np.linalg.norm(np.array(tr.behaviour[-3:-1]))
