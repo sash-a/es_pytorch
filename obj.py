@@ -15,7 +15,7 @@ from es.utils import utils, gym_runner
 from es.utils.ObStat import ObStat
 from es.utils.TrainingResult import TrainingResult, RewardResult, XDistResult
 from es.utils.reporters import LoggerReporter, ReporterSet, StdoutReporter, MLFlowReporter
-from es.utils.utils import moo_mean_rank, compute_centered_ranks, generate_seed
+from es.utils.utils import moo_mean_rank, generate_seed, semi_centered_ranks
 
 if __name__ == '__main__':
     comm: MPI.Comm = MPI.COMM_WORLD
@@ -45,14 +45,14 @@ if __name__ == '__main__':
                         int(np.prod(env.action_space.shape)),
                         256,
                         2,
-                        torch.nn.Tanh,
+                        torch.nn.Tanh(),
                         env,
                         cfg.policy)
     policy: Policy = Policy(nn, cfg.noise.std)
     optim: Optimizer = Adam(policy, cfg.policy.lr)
     nt: NoiseTable = NoiseTable.create_shared(comm, cfg.noise.table_size, len(policy), reporter, cfg.general.seed)
 
-    rank_fn = partial(moo_mean_rank, rank_fn=compute_centered_ranks)
+    rank_fn = partial(moo_mean_rank, rank_fn=semi_centered_ranks)
 
     best_rew = -np.inf
     best_dist = -np.inf
@@ -76,7 +76,6 @@ if __name__ == '__main__':
         nn.set_ob_mean_std(obstat.mean, obstat.std)
         reporter.print(f'noise std:{cfg.noise.std}')
         reporter.print(f'lr:{cfg.policy.lr}')
-        # ranking_fn = dist_fn if gen < 200 else r_fn
         tr, gen_obstat = es.step(cfg, comm, policy, optim, nt, env, r_fn, rs, rank_fn, reporter)
         obstat += gen_obstat  # adding the new observations to the global obstat
 
@@ -90,7 +89,7 @@ if __name__ == '__main__':
 
         # increasing noise if policy is stuck
         time_since_best = 0 if rew > best_rew else time_since_best + 1
-        if time_since_best and cfg.experimental.explore_with_large_noise > 15:
+        if time_since_best > 15 and cfg.experimental.explore_with_large_noise:
             cfg.noise.std = policy.std = policy.std + noise_std_inc
 
         # Saving policy if it obtained a better reward or distance

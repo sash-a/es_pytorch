@@ -10,10 +10,10 @@ class FullyConnected(nn.Module):
                  env: gym.Env, policy_cfg):
         super().__init__()
 
-        layers = [nn.Linear(in_size, hidden_size), activation()]
+        layers = [nn.Linear(in_size, hidden_size), activation]
         for _ in range(n_hidden):
-            layers += [nn.Linear(hidden_size, hidden_size), activation()]
-        layers += [nn.Linear(hidden_size, out_size), activation()]
+            layers += [nn.Linear(hidden_size, hidden_size), activation]
+        layers += [nn.Linear(hidden_size, out_size), activation]
 
         self.model = nn.Sequential(*layers)
         self._action_std = policy_cfg.ac_std

@@ -36,19 +36,6 @@ def scale_noise(fits: np.ndarray, noise_inds: np.ndarray, nt: NoiseTable, batch_
     return total
 
 
-def percent_rank(fits: np.ndarray):
-    """Transforms fitnesses into a percent of their rankings: rank/sum(ranks)"""
-    assert fits.ndim == 1
-    ranked = compute_ranks(fits) + 1
-    return ranked / sum(range(len(ranked) + 1))
-
-
-def percent_fitness(fits: np.ndarray):
-    """Transforms fitnesses into: fitness/total_fitness"""
-    assert fits.ndim == 1
-    return fits / sum(fits)
-
-
 def compute_ranks(x: np.ndarray):
     """
     Returns ranks in [0, len(x))
@@ -64,6 +51,13 @@ def compute_centered_ranks(x: np.ndarray):
     y = compute_ranks(x.ravel()).reshape(x.shape).astype(np.float32)
     y /= (x.size - 1)
     y -= .5
+    return y
+
+
+def semi_centered_ranks(x: np.ndarray):
+    y = compute_ranks(x.ravel()).reshape(x.shape).astype(np.float32)
+    s = x.size
+    y = (((1 / s) * np.square(y + 0.29 * s)) / s) - 0.5
     return y
 
 
