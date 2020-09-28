@@ -61,6 +61,10 @@ def semi_centered_ranks(x: np.ndarray):
     return y
 
 
+def max_normalized_ranks(x: np.ndarray):  # TODO possibly clamp the min to around -0.5
+    return 2 * x / np.max(x) - 1
+
+
 def signed_centered_rank(x: np.ndarray):
     return compute_ranks(np.sign(x))
 

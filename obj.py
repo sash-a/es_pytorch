@@ -15,7 +15,7 @@ from es.utils import utils, gym_runner
 from es.utils.ObStat import ObStat
 from es.utils.TrainingResult import TrainingResult, RewardResult, XDistResult
 from es.utils.reporters import LoggerReporter, ReporterSet, StdoutReporter, MLFlowReporter
-from es.utils.utils import moo_mean_rank, generate_seed, semi_centered_ranks
+from es.utils.utils import moo_mean_rank, generate_seed, max_normalized_ranks
 
 if __name__ == '__main__':
     comm: MPI.Comm = MPI.COMM_WORLD
@@ -52,7 +52,7 @@ if __name__ == '__main__':
     optim: Optimizer = Adam(policy, cfg.policy.lr)
     nt: NoiseTable = NoiseTable.create_shared(comm, cfg.noise.table_size, len(policy), reporter, cfg.general.seed)
 
-    rank_fn = partial(moo_mean_rank, rank_fn=semi_centered_ranks)
+    rank_fn = partial(moo_mean_rank, rank_fn=max_normalized_ranks)
 
     best_rew = -np.inf
     best_dist = -np.inf
