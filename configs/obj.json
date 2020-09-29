@@ -20,10 +20,11 @@
   "experimental": {
     "explore_with_large_noise": false,
     "lr_decay": false,
-    "noise_std_decay": false
+    "noise_std_decay": false,
+    "elite": 0.01
   },
   "general": {
-    "name": "max_normalized_ranks_hopper-bullets",
+    "name": "elite_always_hopper-bullet",
     "gens": 2000,
     "policies_per_gen": 4800,
     "eps_per_policy": 1,

@@ -16,9 +16,9 @@ from torch.nn import Module
 from es.evo.noisetable import NoiseTable
 from es.evo.policy import Policy
 from es.nn.optimizers import Optimizer
-from es.utils.ObStat import ObStat
-from es.utils.TrainingResult import TrainingResult
+from es.utils.obstat import ObStat
 from es.utils.reporters import StdoutReporter, Reporter
+from es.utils.training_result import TrainingResult
 from es.utils.utils import scale_noise, compute_centered_ranks
 
 
@@ -61,12 +61,17 @@ def step(cfg,
     results = _share_results(comm, [tr.result for tr in results_pos], [tr.result for tr in results_neg], inds)
     fits_pos, fits_neg = results[:, 0:n_objectives], results[:, n_objectives:2 * n_objectives]
     ranked_fits = rank_fn(np.concatenate((fits_pos, fits_neg)))
-    ranked_fits = ranked_fits[:len(fits_pos)] - ranked_fits[len(fits_pos):]
+    n_elite = max(1, int(ranked_fits.size * cfg.experimental.elite))
+    elite_fit_inds = np.argpartition(ranked_fits, -n_elite)[-n_elite:]
+    # ranked_fits = ranked_fits[:len(fits_pos)] - ranked_fits[len(fits_pos):]
+
     noise_inds = results[:, -1]
+
     steps = comm.allreduce(sum([tr.steps for tr in results_pos + results_neg]), op=MPI.SUM)
     gen_obstat.mpi_inc(comm)
 
-    _approx_grad(ranked_fits, noise_inds, nt, policy.flat_params, optim, cfg)
+    _approx_grad(ranked_fits[elite_fit_inds] * 1 / cfg.experimental.elite, noise_inds[elite_fit_inds % len(noise_inds)],
+                 nt, policy.flat_params, optim, cfg)
     noiseless_result = fit_fn(policy.pheno(np.zeros(len(policy))), env, cfg.env.max_steps, rs)
     reporter.end_gen(np.concatenate((fits_pos, fits_neg), 0), noiseless_result, policy, steps, time.time() - gen_start)
 
@@ -88,5 +93,7 @@ def _share_results(comm: MPI.Comm,
 
 def _approx_grad(ranked_fits: ndarray, inds: ndarray, nt: NoiseTable, flat_params: ndarray, optim: Optimizer, cfg):
     """approximating gradient and update policy params"""
-    grad = scale_noise(ranked_fits, inds, nt, cfg.general.batch_size) / cfg.general.policies_per_gen
+    print(f'n ranked fits received: {ranked_fits.size}')
+    print(f'fits received:{ranked_fits}')
+    grad = scale_noise(ranked_fits, inds, nt, cfg.general.batch_size) / (ranked_fits.size * 2)
     optim.step(cfg.policy.l2coeff * flat_params - grad)

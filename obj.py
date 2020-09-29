@@ -12,10 +12,10 @@ from es.evo.policy import Policy
 from es.nn.nn import FullyConnected
 from es.nn.optimizers import Adam, Optimizer
 from es.utils import utils, gym_runner
-from es.utils.ObStat import ObStat
-from es.utils.TrainingResult import TrainingResult, RewardResult, XDistResult
+from es.utils.obstat import ObStat
 from es.utils.reporters import LoggerReporter, ReporterSet, StdoutReporter, MLFlowReporter
-from es.utils.utils import moo_mean_rank, generate_seed, max_normalized_ranks
+from es.utils.training_result import TrainingResult, RewardResult, XDistResult
+from es.utils.utils import moo_mean_rank, generate_seed, compute_centered_ranks
 
 if __name__ == '__main__':
     comm: MPI.Comm = MPI.COMM_WORLD
@@ -52,7 +52,7 @@ if __name__ == '__main__':
     optim: Optimizer = Adam(policy, cfg.policy.lr)
     nt: NoiseTable = NoiseTable.create_shared(comm, cfg.noise.table_size, len(policy), reporter, cfg.general.seed)
 
-    rank_fn = partial(moo_mean_rank, rank_fn=max_normalized_ranks)
+    rank_fn = partial(moo_mean_rank, rank_fn=compute_centered_ranks)
 
     best_rew = -np.inf
     best_dist = -np.inf
@@ -73,21 +73,24 @@ if __name__ == '__main__':
     time_since_best = 0
     noise_std_inc = 0.01
     for gen in range(cfg.general.gens):
+        if cfg.noise.std_decay != 1:
+            reporter.log({'noise std': cfg.noise.std})
+        if cfg.policy.lr_decay != 1:
+            reporter.log({'lr': cfg.policy.lr})
+
         nn.set_ob_mean_std(obstat.mean, obstat.std)
-        reporter.print(f'noise std:{cfg.noise.std}')
-        reporter.print(f'lr:{cfg.policy.lr}')
         tr, gen_obstat = es.step(cfg, comm, policy, optim, nt, env, r_fn, rs, rank_fn, reporter)
         obstat += gen_obstat  # adding the new observations to the global obstat
 
         cfg.noise.std = policy.std = max(cfg.noise.std * cfg.noise.std_decay, cfg.noise.std_limit)
         cfg.policy.lr = optim.lr = max(cfg.policy.lr * cfg.policy.lr_decay, cfg.policy.lr_limit)
 
-        reporter.print(f'obs recorded:{obstat.count}')
+        reporter.log({'obs recorded': obstat.count})
 
         dist = np.linalg.norm(np.array(tr.behaviour[-3:-1]))
         rew = np.sum(tr.rewards)
 
-        # increasing noise if policy is stuck
+        # increasing noise std if policy is stuck
         time_since_best = 0 if rew > best_rew else time_since_best + 1
         if time_since_best > 15 and cfg.experimental.explore_with_large_noise:
             cfg.noise.std = policy.std = policy.std + noise_std_inc

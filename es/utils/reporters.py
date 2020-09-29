@@ -4,15 +4,15 @@ import json
 import logging
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import Tuple
+from typing import Tuple, Dict
 
 import numpy as np
-from mlflow import log_params, log_metric, set_experiment, start_run
+from mlflow import log_params, log_metric, log_metrics, set_experiment, start_run
 from mpi4py import MPI
 from pandas import json_normalize
 
 from es.evo.policy import Policy
-from es.utils.TrainingResult import TrainingResult
+from es.utils.training_result import TrainingResult
 
 
 def calc_dist_rew(tr: TrainingResult) -> Tuple[float, float]:
@@ -31,11 +31,14 @@ class Reporter(ABC):
         pass
 
     @abstractmethod
-    def _print_fn(self, s: str):
+    def print(self, s: str):
+        """For printing one time information"""
         pass
 
-    def print(self, s: str):
-        self._print_fn(s)
+    @abstractmethod
+    def log(self, d: Dict[str, float]):
+        """For logging key value pairs that recur each generation"""
+        pass
 
 
 class ReporterSet(Reporter):
@@ -51,28 +54,37 @@ class ReporterSet(Reporter):
         for reporter in self.reporters:
             reporter.end_gen(fits, noiseless_tr, noiseless_policy, steps, time)
 
-    def _print_fn(self, s: str):
-        raise NotImplementedError('Reporter set does not have a print_fn it can only print')
-
     def print(self, s: str):
         for reporter in self.reporters:
             reporter.print(s)
 
+    def log(self, d: Dict[str, float]):
+        for reporter in self.reporters:
+            reporter.log(d)
+
 
 class MPIReporter(Reporter, ABC):
-    ROOT = 0
+    MAIN = 0
 
     def __init__(self, comm: MPI.Comm):
         self.comm = comm
 
     def start_gen(self):
-        if self.comm.rank == MPIReporter.ROOT:
+        if self.comm.rank == MPIReporter.MAIN:
             self._start_gen()
 
     def end_gen(self, fits: np.ndarray, noiseless_tr: TrainingResult, noiseless_policy: Policy, steps: int,
                 time: float):
-        if self.comm.rank == MPIReporter.ROOT:
+        if self.comm.rank == MPIReporter.MAIN:
             self._end_gen(fits, noiseless_tr, noiseless_policy, steps, time)
+
+    def print(self, s: str):
+        if self.comm.rank == MPIReporter.MAIN:
+            self._print(s)
+
+    def log(self, d: Dict[str, float]):
+        if self.comm.rank == MPIReporter.MAIN:
+            self._log(d)
 
     @abstractmethod
     def _start_gen(self):
@@ -83,9 +95,13 @@ class MPIReporter(Reporter, ABC):
                  time: float):
         pass
 
-    def print(self, s: str):
-        if self.comm.rank == MPIReporter.ROOT:
-            super().print(s)
+    @abstractmethod
+    def _print(self, s: str):
+        pass
+
+    @abstractmethod
+    def _log(self, d: Dict[str, float]):
+        pass
 
 
 class StdoutReporter(MPIReporter):
@@ -119,8 +135,12 @@ class StdoutReporter(MPIReporter):
         print(f'time:{time:0.2f}')
         self.gen += 1
 
-    def _print_fn(self, s: str):
+    def _print(self, s: str):
         print(s)
+
+    def _log(self, d: Dict[str, float]):
+        for k, v in d.items():
+            print(f'{k}:{v}')
 
 
 class LoggerReporter(MPIReporter):
@@ -162,8 +182,12 @@ class LoggerReporter(MPIReporter):
         logging.info(f'time:{time:0.2f}')
         self.gen += 1
 
-    def _print_fn(self, s: str):
+    def _print(self, s: str):
         logging.info(s)
+
+    def _log(self, d: Dict[str, float]):
+        for k, v in d.items():
+            logging.info(f'{k}:{v}')
 
 
 class MLFlowReporter(MPIReporter):
@@ -201,8 +225,8 @@ class MLFlowReporter(MPIReporter):
 
         self.gen += 1
 
-    def _print_fn(self, s: str):
-        # key_val = s.split(':')
-        # if len(key_val) == 2:
-        #     log_param(key_val[0], key_val[1])
+    def _print(self, s: str):
         pass
+
+    def _log(self, d: Dict[str, float]):
+        log_metrics(d, self.gen)
