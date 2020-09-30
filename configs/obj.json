@@ -18,13 +18,14 @@
     "save_obs_chance": 0.01
   },
   "experimental": {
+    "max_time_since_best": 15,
     "explore_with_large_noise": false,
     "lr_decay": false,
     "noise_std_decay": false,
-    "elite": 0.01
+    "elite": 0.2
   },
   "general": {
-    "name": "elite_always_hopper-bullet",
+    "name": "hopper_bullet_elite",
     "gens": 2000,
     "policies_per_gen": 4800,
     "eps_per_policy": 1,
