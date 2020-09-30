@@ -7,6 +7,8 @@ from es.utils.novelty import novelty
 
 
 class TrainingResult(ABC):
+    """Stores the results of a single training run"""
+
     def __init__(self, rewards: Sequence[float], behaviour: Sequence[float], obs: np.ndarray, steps: int,
                  *args, **kwargs):
         self.rewards: Sequence[float] = rewards

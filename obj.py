@@ -1,5 +1,3 @@
-from functools import partial
-
 import gym
 import mlflow
 import numpy as np
@@ -13,9 +11,10 @@ from es.nn.nn import FullyConnected
 from es.nn.optimizers import Adam, Optimizer
 from es.utils import utils, gym_runner
 from es.utils.obstat import ObStat
+from es.utils.ranking_functions import CenteredRanker
 from es.utils.reporters import LoggerReporter, ReporterSet, StdoutReporter, MLFlowReporter
-from es.utils.training_result import TrainingResult, RewardResult, XDistResult
-from es.utils.utils import moo_mean_rank, generate_seed, compute_centered_ranks
+from es.utils.training_result import TrainingResult, RewardResult
+from es.utils.utils import generate_seed
 
 if __name__ == '__main__':
     comm: MPI.Comm = MPI.COMM_WORLD
@@ -52,8 +51,7 @@ if __name__ == '__main__':
     optim: Optimizer = Adam(policy, cfg.policy.lr)
     nt: NoiseTable = NoiseTable.create_shared(comm, cfg.noise.table_size, len(policy), reporter, cfg.general.seed)
 
-    rank_fn = partial(moo_mean_rank, rank_fn=compute_centered_ranks)
-
+    ranker = CenteredRanker()
     best_rew = -np.inf
     best_dist = -np.inf
 
@@ -62,12 +60,6 @@ if __name__ == '__main__':
         save_obs = (r.random() if r is not None else np.random.random()) < cfg.policy.save_obs_chance
         rews, behv, obs, steps = gym_runner.run_model(model, e, max_steps, r, save_obs)
         return RewardResult(rews, behv, obs, steps)
-
-
-    def dist_fn(model: torch.nn.Module, e: gym.Env, max_steps: int, r: np.random.RandomState = None) -> TrainingResult:
-        save_obs = (r.random() if r is not None else np.random.random()) < cfg.policy.save_obs_chance
-        rews, behv, obs, steps = gym_runner.run_model(model, e, max_steps, r, save_obs)
-        return XDistResult(rews, behv, obs, steps)
 
 
     time_since_best = 0
@@ -79,7 +71,7 @@ if __name__ == '__main__':
             reporter.log({'lr': cfg.policy.lr})
 
         nn.set_ob_mean_std(obstat.mean, obstat.std)
-        tr, gen_obstat = es.step(cfg, comm, policy, optim, nt, env, r_fn, rs, rank_fn, reporter)
+        tr, gen_obstat = es.step(cfg, comm, policy, optim, nt, env, r_fn, rs, ranker, reporter)
         obstat += gen_obstat  # adding the new observations to the global obstat
 
         cfg.noise.std = policy.std = max(cfg.noise.std * cfg.noise.std_decay, cfg.noise.std_limit)

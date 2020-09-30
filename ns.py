@@ -14,9 +14,9 @@ from es.nn.nn import FullyConnected
 from es.nn.optimizers import Adam, Optimizer
 from es.utils import utils, gym_runner
 from es.utils.novelty import update_archive
+from es.utils.ranking_functions import moo_mean_rank, compute_centered_ranks
 from es.utils.reporters import LoggerReporter
 from es.utils.training_result import TrainingResult, NSResult
-from es.utils.utils import compute_centered_ranks, moo_mean_rank
 
 if __name__ == '__main__':
     comm: MPI.Comm = MPI.COMM_WORLD

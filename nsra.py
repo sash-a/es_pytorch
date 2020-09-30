@@ -16,9 +16,10 @@ from es.nn.optimizers import Adam, Optimizer
 from es.utils import utils, gym_runner
 from es.utils.novelty import update_archive
 from es.utils.obstat import ObStat
+from es.utils.ranking_functions import moo_weighted_rank, compute_centered_ranks
 from es.utils.reporters import LoggerReporter, ReporterSet, StdoutReporter, MLFlowReporter
 from es.utils.training_result import TrainingResult, NSRResult
-from es.utils.utils import compute_centered_ranks, moo_weighted_rank, generate_seed
+from es.utils.utils import generate_seed
 
 if __name__ == '__main__':
     comm: MPI.Comm = MPI.COMM_WORLD
