@@ -11,7 +11,7 @@ from es.nn.nn import FullyConnected
 from es.nn.optimizers import Adam, Optimizer
 from es.utils import utils, gym_runner
 from es.utils.obstat import ObStat
-from es.utils.ranking_functions import CenteredRanker, EliteRanker
+from es.utils.ranking_functions import CenteredRanker, EliteRanker, DoublePositiveCenteredRanker
 from es.utils.reporters import LoggerReporter, ReporterSet, StdoutReporter, MLFlowReporter
 from es.utils.training_result import TrainingResult, RewardResult
 from es.utils.utils import generate_seed
@@ -51,7 +51,7 @@ if __name__ == '__main__':
     optim: Optimizer = Adam(policy, cfg.policy.lr)
     nt: NoiseTable = NoiseTable.create_shared(comm, cfg.noise.table_size, len(policy), reporter, cfg.general.seed)
 
-    ranker = CenteredRanker()
+    ranker = DoublePositiveCenteredRanker()
     if cfg.experimental.elite < 1:
         ranker = EliteRanker(CenteredRanker(), cfg.experimental.elite)
 
@@ -96,8 +96,8 @@ if __name__ == '__main__':
                 ranker.elite_percent = cfg.experimental.elite
             if time_since_best == 0:
                 ranker.elite_percent = 1
+            reporter.print(f'elite percent: {ranker.elite_percent}')
 
-        reporter.print(f'elite percent: {ranker.elite_percent}')
         save_policy = (rew > best_rew or dist > best_dist)
         best_rew = max(rew, best_rew)
         best_dist = max(dist, best_dist)

@@ -58,6 +58,14 @@ class CenteredRanker(Ranker):
         return np.squeeze(y)
 
 
+class DoublePositiveCenteredRanker(CenteredRanker):
+    def _rank(self, x: np.ndarray) -> np.ndarray:
+        y = super()._rank(x)
+        y[y > 0] *= 2
+        print(y)
+        return y
+
+
 class MaxNormalizedRanker(Ranker):
     def _rank(self, x: np.ndarray) -> np.ndarray:
         return 2 * x / np.max(x) - 1  # TODO possibly clamp the min to around -0.25
