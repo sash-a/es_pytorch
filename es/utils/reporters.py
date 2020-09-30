@@ -43,7 +43,7 @@ class Reporter(ABC):
 
 class ReporterSet(Reporter):
     def __init__(self, *reporters: Reporter):
-        self.reporters = reporters
+        self.reporters = [reporter for reporter in reporters if reporter is not None]
 
     def start_gen(self):
         for reporter in self.reporters:

@@ -11,7 +11,7 @@ from es.nn.nn import FullyConnected
 from es.nn.optimizers import Adam, Optimizer
 from es.utils import utils, gym_runner
 from es.utils.obstat import ObStat
-from es.utils.ranking_functions import CenteredRanker
+from es.utils.ranking_functions import CenteredRanker, EliteRanker
 from es.utils.reporters import LoggerReporter, ReporterSet, StdoutReporter, MLFlowReporter
 from es.utils.training_result import TrainingResult, RewardResult
 from es.utils.utils import generate_seed
@@ -26,7 +26,7 @@ if __name__ == '__main__':
     reporter = ReporterSet(
         LoggerReporter(comm, cfg, cfg.general.name),
         StdoutReporter(comm),
-        MLFlowReporter(comm, cfg_file, cfg)
+        MLFlowReporter(comm, cfg_file, cfg) if cfg.general.name != 'homerun' else None
     )
 
     env: gym.Env = gym.make(cfg.env.name)
@@ -52,6 +52,9 @@ if __name__ == '__main__':
     nt: NoiseTable = NoiseTable.create_shared(comm, cfg.noise.table_size, len(policy), reporter, cfg.general.seed)
 
     ranker = CenteredRanker()
+    if cfg.experimental.elite < 1:
+        ranker = EliteRanker(CenteredRanker(), cfg.experimental.elite)
+
     best_rew = -np.inf
     best_dist = -np.inf
 
@@ -82,15 +85,25 @@ if __name__ == '__main__':
         dist = np.linalg.norm(np.array(tr.behaviour[-3:-1]))
         rew = np.sum(tr.rewards)
 
-        # increasing noise std if policy is stuck
         time_since_best = 0 if rew > best_rew else time_since_best + 1
-        if time_since_best > 15 and cfg.experimental.explore_with_large_noise:
+        reporter.log({'time since best': time_since_best})
+        # increasing noise std if policy is stuck
+        if time_since_best > cfg.experimental.max_time_since_best and cfg.experimental.explore_with_large_noise:
             cfg.noise.std = policy.std = policy.std + noise_std_inc
 
+        if cfg.experimental.elite < 1:  # using elite extension
+            if time_since_best > cfg.experimental.max_time_since_best and cfg.experimental.elite < 1:
+                ranker.elite_percent = cfg.experimental.elite
+            if time_since_best == 0:
+                ranker.elite_percent = 1
+
+        reporter.print(f'elite percent: {ranker.elite_percent}')
+        save_policy = (rew > best_rew or dist > best_dist)
+        best_rew = max(rew, best_rew)
+        best_dist = max(dist, best_dist)
+
         # Saving policy if it obtained a better reward or distance
-        if (rew > best_rew or dist > best_dist) and comm.rank == 0:
-            best_rew = max(rew, best_rew)
-            best_dist = max(dist, best_dist)
+        if save_policy and comm.rank == 0:
             policy.save(f'saved/{cfg.general.name}', str(gen))
             reporter.print(f'saving policy with rew:{rew:0.2f} and dist:{dist:0.2f}')
 

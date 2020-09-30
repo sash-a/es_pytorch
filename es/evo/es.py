@@ -17,7 +17,7 @@ from es.evo.noisetable import NoiseTable
 from es.evo.policy import Policy
 from es.nn.optimizers import Optimizer
 from es.utils.obstat import ObStat
-from es.utils.ranking_functions import Ranker, CenteredRanker, EliteRanker
+from es.utils.ranking_functions import Ranker, CenteredRanker
 from es.utils.reporters import StdoutReporter, Reporter
 from es.utils.training_result import TrainingResult
 from es.utils.utils import scale_noise
@@ -61,8 +61,6 @@ def step(cfg,
 
     results = _share_results(comm, [tr.result for tr in results_pos], [tr.result for tr in results_neg], inds)
     ranked_fits = ranker.rank(results[:, 0:n_objectives], results[:, n_objectives:2 * n_objectives], results[:, -1])
-    if isinstance(ranker, EliteRanker):  # if using less individuals then give them more weighting
-        ranked_fits *= 1 / ranker.elite_percent
 
     steps = comm.allreduce(sum([tr.steps for tr in results_pos + results_neg]), op=MPI.SUM)
     gen_obstat.mpi_inc(comm)
