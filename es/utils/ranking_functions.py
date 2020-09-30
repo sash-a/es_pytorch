@@ -45,7 +45,7 @@ class Ranker(ABC):
 
     def rank(self, fits_pos: np.ndarray, fits_neg: np.ndarray, noise_inds: np.ndarray) -> np.ndarray:
         self._pre_rank(fits_pos, fits_neg, noise_inds)
-        ranked_fits = self._rank(self.fits_pos)
+        ranked_fits = self._rank(self.fits)
         self.ranked_fits = self._post_rank(ranked_fits)
         return self.ranked_fits
 
