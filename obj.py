@@ -82,7 +82,7 @@ if __name__ == '__main__':
 
         reporter.log({'obs recorded': obstat.count})
 
-        dist = np.linalg.norm(np.array(tr.behaviour[-3:-1]))
+        dist = np.linalg.norm(np.array(tr.positions[-3:-1]))
         rew = np.sum(tr.rewards)
 
         time_since_best = 0 if rew > best_rew else time_since_best + 1

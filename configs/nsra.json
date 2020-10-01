@@ -17,9 +17,6 @@
     "lr_decay": 0.9999,
     "save_obs_chance": 0.01
   },
-  "experimental": {
-    "explore_with_large_noise": false
-  },
   "general": {
     "name": "hopper_bullet_nsra",
     "gens": 5000,
@@ -31,11 +28,20 @@
   },
   "novelty": {
     "k": 10,
-    "thresh": 2,
-    "archive_size": -1
+    "archive_size": -1,
+    "rollouts": 5
   },
-  "nsra": {
+  "nsr": {
+    "adaptive": false,
+    "initial_w": 0.5,
     "weight_delta": 0.05,
-    "max_time_since_best": 10
+    "max_time_since_best": 15
+  },
+  "experimental": {
+    "max_time_since_best": 15,
+    "explore_with_large_noise": false,
+    "lr_decay": false,
+    "noise_std_decay": false,
+    "elite": 0.2
   }
 }

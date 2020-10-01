@@ -62,7 +62,6 @@ class DoublePositiveCenteredRanker(CenteredRanker):
     def _rank(self, x: np.ndarray) -> np.ndarray:
         y = super()._rank(x)
         y[y > 0] *= 2
-        print(y)
         return y
 
 

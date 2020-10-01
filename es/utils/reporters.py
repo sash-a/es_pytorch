@@ -17,7 +17,7 @@ from es.utils.training_result import TrainingResult
 
 def calc_dist_rew(tr: TrainingResult) -> Tuple[float, float]:
     # Calculating distance traveled (ignoring height dim). Assumes starting at 0, 0
-    return np.linalg.norm(np.array(tr.behaviour[-3:-1])), np.sum(tr.rewards)
+    return np.linalg.norm(np.array(tr.positions[-3:-1])), np.sum(tr.rewards)
 
 
 class Reporter(ABC):

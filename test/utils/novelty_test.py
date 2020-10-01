@@ -27,7 +27,7 @@ def test_update_archive(comm):
 def test_novelty():
     beh = np.array([0, 0])
     archive = np.array([[2, 2], [1, 1], [3, 3]])
-    assert novelty(beh, archive, 1) == 2
-    assert novelty(beh, archive, 2) == 10 / 2
-    assert novelty(beh, archive, 3) == 28 / 3
-    assert novelty(beh, archive, 50) == 28 / 3
+    assert novelty(beh, archive, 1) == np.sqrt(2)
+    assert novelty(beh, archive, 2) == (np.sqrt(2) + np.sqrt(8)) / 2
+    assert novelty(beh, archive, 3) == (np.sqrt(2) + np.sqrt(8) + np.sqrt(18)) / 3
+    assert novelty(beh, archive, 50) == (np.sqrt(2) + np.sqrt(8) + np.sqrt(18)) / 3
