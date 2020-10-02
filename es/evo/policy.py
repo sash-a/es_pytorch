@@ -38,7 +38,7 @@ class Policy(torch.nn.Module):
     def save(self, folder: str, suffix: str):
         if not os.path.exists(folder):
             os.makedirs(folder)
-        pickle.dump(self, open(f'{folder}/policy-{suffix}', 'wb'))
+        pickle.dump(self, open(os.path.join(folder, f'policy-{suffix}'), 'wb'))
 
     def set_nn_params(self, params: np.ndarray) -> torch.nn.Module:
         with torch.no_grad():

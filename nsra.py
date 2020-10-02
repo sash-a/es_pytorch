@@ -127,7 +127,7 @@ if __name__ == '__main__':
                 time_since_best[idx] = 0
 
         # Saving policy if it obtained a better reward or distance
-        if rew > best_rew or dist > best_dist and comm.rank == 0:
+        if (rew > best_rew or dist > best_dist) and comm.rank == 0:
             best_rew = max(rew, best_rew)
             best_dist = max(dist, best_dist)
             population[idx].save(f'saved/{cfg.general.name}', str(gen))

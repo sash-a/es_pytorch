@@ -26,7 +26,7 @@ class Reporter(ABC):
         pass
 
     @abstractmethod
-    def log_gen(self, fits: np.ndarray, noiseless_tr: TrainingResult, noiseless_policy: Policy, steps: int,
+    def log_gen(self, fits: np.ndarray, noiseless_tr: TrainingResult, policy: Policy, steps: int,
                 time: float):
         pass
 
@@ -53,10 +53,10 @@ class ReporterSet(Reporter):
         for reporter in self.reporters:
             reporter.start_gen()
 
-    def log_gen(self, fits: np.ndarray, noiseless_tr: TrainingResult, noiseless_policy: Policy, steps: int,
+    def log_gen(self, fits: np.ndarray, noiseless_tr: TrainingResult, policy: Policy, steps: int,
                 time: float):
         for reporter in self.reporters:
-            reporter.log_gen(fits, noiseless_tr, noiseless_policy, steps, time)
+            reporter.log_gen(fits, noiseless_tr, policy, steps, time)
 
     def end_gen(self):
         for reporter in self.reporters:
@@ -81,10 +81,10 @@ class MPIReporter(Reporter, ABC):
         if self.comm.rank == MPIReporter.MAIN:
             self._start_gen()
 
-    def log_gen(self, fits: np.ndarray, noiseless_tr: TrainingResult, noiseless_policy: Policy, steps: int,
+    def log_gen(self, fits: np.ndarray, noiseless_tr: TrainingResult, policy: Policy, steps: int,
                 time: float):
         if self.comm.rank == MPIReporter.MAIN:
-            self._log_gen(fits, noiseless_tr, noiseless_policy, steps, time)
+            self._log_gen(fits, noiseless_tr, policy, steps, time)
 
     def end_gen(self):
         if self.comm.rank == MPIReporter.MAIN:
@@ -103,7 +103,7 @@ class MPIReporter(Reporter, ABC):
         pass
 
     @abstractmethod
-    def _log_gen(self, fits: np.ndarray, noiseless_tr: TrainingResult, noiseless_policy: Policy, steps: int,
+    def _log_gen(self, fits: np.ndarray, noiseless_tr: TrainingResult, policy: Policy, steps: int,
                  time: float):
         pass
 
@@ -132,7 +132,7 @@ class StdoutReporter(MPIReporter):
               f'----------------------------------------'
               f'\ngen:{self.gen}')
 
-    def _log_gen(self, fits: np.ndarray, noiseless_tr: TrainingResult, noiseless_policy: Policy, steps: int,
+    def _log_gen(self, fits: np.ndarray, noiseless_tr: TrainingResult, policy: Policy, steps: int,
                  time: float):
         for i, col in enumerate(fits.T):
             # Objectives are grouped by column so this finds the avg and max of each objective
@@ -181,7 +181,7 @@ class LoggerReporter(MPIReporter):
     def _start_gen(self):
         logging.info(f'gen:{self.gen}')
 
-    def _log_gen(self, fits: np.ndarray, noiseless_tr: TrainingResult, noiseless_policy: Policy, steps: int,
+    def _log_gen(self, fits: np.ndarray, noiseless_tr: TrainingResult, policy: Policy, steps: int,
                  time: float):
         for i, col in enumerate(fits.T):
             # Objectives are grouped by column so this finds the avg and max of each objective
@@ -232,15 +232,17 @@ class MLFlowReporter(MPIReporter):
         if self.comm.rank == MPIReporter.MAIN:
             self.active_run = i
 
-    def _start_gen(self):
-        pass
-
-    def _log_gen(self, fits: np.ndarray, noiseless_tr: TrainingResult, noiseless_policy: Policy, steps: int,
-                 time: float):
+    def start_active_run(self):
         assert self.active_run is not None, \
             'No nested run is currently active, but you are trying to log metrics. Must call set_active_run first'
 
-        with start_run(run_id=self.run_ids[self.active_run], nested=True):
+        return start_run(run_id=self.run_ids[self.active_run], nested=True)
+
+    def _start_gen(self):
+        pass
+
+    def _log_gen(self, fits: np.ndarray, noiseless_tr: TrainingResult, policy: Policy, steps: int, time: float):
+        with self.start_active_run():
             for i, col in enumerate(fits.T):
                 # Objectives are grouped by column so this finds the avg and max of each objective
                 log_metric(f'obj {i} avg', np.mean(col), self.gens[self.active_run])
@@ -263,6 +265,5 @@ class MLFlowReporter(MPIReporter):
         pass
 
     def _log(self, d: Dict[str, float]):
-        assert self.active_run is not None, \
-            'No nested run is currently active, but you are trying to log metrics. Must call set_active_run first'
-        log_metrics(d, self.gens[self.active_run])
+        with self.start_active_run():
+            log_metrics(d, self.gens[self.active_run])
