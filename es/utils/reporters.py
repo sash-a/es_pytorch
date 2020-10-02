@@ -26,8 +26,12 @@ class Reporter(ABC):
         pass
 
     @abstractmethod
-    def end_gen(self, fits: np.ndarray, noiseless_tr: TrainingResult, noiseless_policy: Policy, steps: int,
+    def log_gen(self, fits: np.ndarray, noiseless_tr: TrainingResult, noiseless_policy: Policy, steps: int,
                 time: float):
+        pass
+
+    @abstractmethod
+    def end_gen(self):
         pass
 
     @abstractmethod
@@ -49,10 +53,14 @@ class ReporterSet(Reporter):
         for reporter in self.reporters:
             reporter.start_gen()
 
-    def end_gen(self, fits: np.ndarray, noiseless_tr: TrainingResult, noiseless_policy: Policy, steps: int,
+    def log_gen(self, fits: np.ndarray, noiseless_tr: TrainingResult, noiseless_policy: Policy, steps: int,
                 time: float):
         for reporter in self.reporters:
-            reporter.end_gen(fits, noiseless_tr, noiseless_policy, steps, time)
+            reporter.log_gen(fits, noiseless_tr, noiseless_policy, steps, time)
+
+    def end_gen(self):
+        for reporter in self.reporters:
+            reporter.end_gen()
 
     def print(self, s: str):
         for reporter in self.reporters:
@@ -73,10 +81,14 @@ class MPIReporter(Reporter, ABC):
         if self.comm.rank == MPIReporter.MAIN:
             self._start_gen()
 
-    def end_gen(self, fits: np.ndarray, noiseless_tr: TrainingResult, noiseless_policy: Policy, steps: int,
+    def log_gen(self, fits: np.ndarray, noiseless_tr: TrainingResult, noiseless_policy: Policy, steps: int,
                 time: float):
         if self.comm.rank == MPIReporter.MAIN:
-            self._end_gen(fits, noiseless_tr, noiseless_policy, steps, time)
+            self._log_gen(fits, noiseless_tr, noiseless_policy, steps, time)
+
+    def end_gen(self):
+        if self.comm.rank == MPIReporter.MAIN:
+            self._end_gen()
 
     def print(self, s: str):
         if self.comm.rank == MPIReporter.MAIN:
@@ -91,8 +103,12 @@ class MPIReporter(Reporter, ABC):
         pass
 
     @abstractmethod
-    def _end_gen(self, fits: np.ndarray, noiseless_tr: TrainingResult, noiseless_policy: Policy, steps: int,
+    def _log_gen(self, fits: np.ndarray, noiseless_tr: TrainingResult, noiseless_policy: Policy, steps: int,
                  time: float):
+        pass
+
+    @abstractmethod
+    def _end_gen(self):
         pass
 
     @abstractmethod
@@ -116,7 +132,7 @@ class StdoutReporter(MPIReporter):
               f'----------------------------------------'
               f'\ngen:{self.gen}')
 
-    def _end_gen(self, fits: np.ndarray, noiseless_tr: TrainingResult, noiseless_policy: Policy, steps: int,
+    def _log_gen(self, fits: np.ndarray, noiseless_tr: TrainingResult, noiseless_policy: Policy, steps: int,
                  time: float):
         for i, col in enumerate(fits.T):
             # Objectives are grouped by column so this finds the avg and max of each objective
@@ -133,6 +149,8 @@ class StdoutReporter(MPIReporter):
         print(f'steps:{steps}')
         print(f'cum steps:{self.cum_steps}')
         print(f'time:{time:0.2f}')
+
+    def _end_gen(self):
         self.gen += 1
 
     def _print(self, s: str):
@@ -163,7 +181,7 @@ class LoggerReporter(MPIReporter):
     def _start_gen(self):
         logging.info(f'gen:{self.gen}')
 
-    def _end_gen(self, fits: np.ndarray, noiseless_tr: TrainingResult, noiseless_policy: Policy, steps: int,
+    def _log_gen(self, fits: np.ndarray, noiseless_tr: TrainingResult, noiseless_policy: Policy, steps: int,
                  time: float):
         for i, col in enumerate(fits.T):
             # Objectives are grouped by column so this finds the avg and max of each objective
@@ -180,6 +198,8 @@ class LoggerReporter(MPIReporter):
         logging.info(f'steps:{steps}')
         logging.info(f'cum steps:{self.cum_steps}')
         logging.info(f'time:{time:0.2f}')
+
+    def _end_gen(self):
         self.gen += 1
 
     def _print(self, s: str):
@@ -191,42 +211,58 @@ class LoggerReporter(MPIReporter):
 
 
 class MLFlowReporter(MPIReporter):
+
     def __init__(self, comm: MPI.Comm, cfg_file: str, cfg):
         super().__init__(comm)
-
-        if comm.rank == 0:
+        if comm.rank == MPIReporter.MAIN:
             set_experiment(cfg.env.name)
             start_run(run_name=cfg.general.name)
             log_params(json_normalize(json.load(open(cfg_file))).to_dict(orient='records')[0])
 
-            self.gen = 0
-            self.best_rew = 0
-            self.best_dist = 0
             self.cum_steps = 0
+            self.gens = [0] * cfg.general.n_policies
+
+            self.run_ids = []
+            self.active_run = None
+            for i in range(cfg.general.n_policies):
+                with start_run(run_name=f'{i}', nested=True) as run:
+                    self.run_ids.append(run.info.run_id)
+
+    def set_active_run(self, i: int):
+        if self.comm.rank == MPIReporter.MAIN:
+            self.active_run = i
 
     def _start_gen(self):
         pass
 
-    def _end_gen(self, fits: np.ndarray, noiseless_tr: TrainingResult, noiseless_policy: Policy, steps: int,
+    def _log_gen(self, fits: np.ndarray, noiseless_tr: TrainingResult, noiseless_policy: Policy, steps: int,
                  time: float):
-        for i, col in enumerate(fits.T):
-            # Objectives are grouped by column so this finds the avg and max of each objective
-            log_metric(f'obj {i} avg', np.mean(col), self.gen)
-            log_metric(f'obj {i} max', np.max(col), self.gen)
+        assert self.active_run is not None, \
+            'No nested run is currently active, but you are trying to log metrics. Must call set_active_run first'
 
-        dist, rew = calc_dist_rew(noiseless_tr)
-        self.cum_steps += steps
+        with start_run(run_id=self.run_ids[self.active_run], nested=True):
+            for i, col in enumerate(fits.T):
+                # Objectives are grouped by column so this finds the avg and max of each objective
+                log_metric(f'obj {i} avg', np.mean(col), self.gens[self.active_run])
+                log_metric(f'obj {i} max', np.max(col), self.gens[self.active_run])
 
-        log_metric('dist', dist, self.gen)
-        log_metric('rew', rew, self.gen)
-        log_metric(f'steps', steps, self.gen)
-        log_metric(f'cum steps', self.cum_steps, self.gen)
-        log_metric('time', time, self.gen)
+            dist, rew = calc_dist_rew(noiseless_tr)
+            self.cum_steps += steps
 
-        self.gen += 1
+            log_metric('dist', dist, self.gens[self.active_run])
+            log_metric('rew', rew, self.gens[self.active_run])
+            log_metric(f'steps', steps, self.gens[self.active_run])
+            log_metric(f'cum steps', self.cum_steps, self.gens[self.active_run])
+            log_metric('time', time, self.gens[self.active_run])
+
+    def _end_gen(self):
+        self.gens[self.active_run] += 1
+        self.active_run = None
 
     def _print(self, s: str):
         pass
 
     def _log(self, d: Dict[str, float]):
-        log_metrics(d, self.gen)
+        assert self.active_run is not None, \
+            'No nested run is currently active, but you are trying to log metrics. Must call set_active_run first'
+        log_metrics(d, self.gens[self.active_run])

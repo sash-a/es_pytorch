@@ -43,9 +43,8 @@ def step(cfg,
     assert cfg.general.policies_per_gen % comm.size == 0 and (cfg.general.policies_per_gen / comm.size) % 2 == 0
     eps_per_proc = int((cfg.general.policies_per_gen / comm.size) / 2)
 
-    gen_start = time.time()
+    gen_start = time.time()  # TODO make this internal to reporters?
     gen_obstat = ObStat(env.observation_space.shape, 0)
-    reporter.start_gen()
     results_pos, results_neg, inds = [], [], []
 
     for _ in range(eps_per_proc):
@@ -67,7 +66,7 @@ def step(cfg,
 
     _approx_grad(ranked_fits, ranker.n_fits_ranked, ranker.noise_inds, nt, policy.flat_params, optim, cfg)
     noiseless_result = fit_fn(policy.pheno(np.zeros(len(policy))), env, cfg.env.max_steps, rs)
-    reporter.end_gen(ranker.fits, noiseless_result, policy, steps, time.time() - gen_start)
+    reporter.log_gen(ranker.fits, noiseless_result, policy, steps, time.time() - gen_start)
 
     return noiseless_result, gen_obstat
 

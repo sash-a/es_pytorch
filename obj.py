@@ -23,10 +23,11 @@ if __name__ == '__main__':
     cfg_file = utils.parse_args()
     cfg = utils.load_config(cfg_file)
 
+    mlflow_reporter = MLFlowReporter(comm, cfg_file, cfg)
     reporter = ReporterSet(
         LoggerReporter(comm, cfg, cfg.general.name),
         StdoutReporter(comm),
-        MLFlowReporter(comm, cfg_file, cfg) if cfg.general.name != 'homerun' else None
+        mlflow_reporter
     )
 
     env: gym.Env = gym.make(cfg.env.name)
@@ -49,7 +50,7 @@ if __name__ == '__main__':
                         cfg.policy)
     policy: Policy = Policy(nn, cfg.noise.std)
     optim: Optimizer = Adam(policy, cfg.policy.lr)
-    nt: NoiseTable = NoiseTable.create_shared(comm, cfg.noise.table_size, len(policy), reporter, cfg.general.seed)
+    nt: NoiseTable = NoiseTable.create_shared(comm, cfg.noise.tbl_size, len(policy), reporter, cfg.general.seed)
 
     ranker = DoublePositiveCenteredRanker()
     if cfg.experimental.elite < 1:
@@ -68,6 +69,9 @@ if __name__ == '__main__':
     time_since_best = 0
     noise_std_inc = 0.01
     for gen in range(cfg.general.gens):
+        mlflow_reporter.set_active_run(0)
+        reporter.start_gen()
+
         if cfg.noise.std_decay != 1:
             reporter.log({'noise std': cfg.noise.std})
         if cfg.policy.lr_decay != 1:
@@ -107,4 +111,5 @@ if __name__ == '__main__':
             policy.save(f'saved/{cfg.general.name}', str(gen))
             reporter.print(f'saving policy with rew:{rew:0.2f} and dist:{dist:0.2f}')
 
+        reporter.end_gen()
     mlflow.end_run()  # in the case where mlflow is the reporter, just ending its run

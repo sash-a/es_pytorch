@@ -4,17 +4,17 @@
     "max_steps": 2000
   },
   "noise": {
-    "table_size": 250000000,
+    "tbl_size": 250000000,
     "std": 0.02,
     "std_limit": 0.002,
-    "std_decay": 0.9999
+    "std_decay": 1
   },
   "policy": {
     "ac_std": 0.01,
     "l2coeff": 0.005,
     "lr": 0.01,
     "lr_limit": 0.001,
-    "lr_decay": 0.9999,
+    "lr_decay": 1,
     "save_obs_chance": 0.01
   },
   "general": {
@@ -22,7 +22,7 @@
     "gens": 5000,
     "policies_per_gen": 4800,
     "eps_per_policy": 1,
-    "n_policies": 1,
+    "n_policies": 5,
     "batch_size": 500,
     "seed": null
   },
@@ -32,8 +32,8 @@
     "rollouts": 5
   },
   "nsr": {
-    "adaptive": false,
-    "initial_w": 0.5,
+    "adaptive": true,
+    "initial_w": 1,
     "weight_delta": 0.05,
     "max_time_since_best": 15
   },
@@ -42,6 +42,6 @@
     "explore_with_large_noise": false,
     "lr_decay": false,
     "noise_std_decay": false,
-    "elite": 0.2
+    "elite": 1
   }
 }
