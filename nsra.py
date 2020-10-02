@@ -85,7 +85,7 @@ if __name__ == '__main__':
             behv = mean_behv(policy, ns_fn, env, cfg.novelty.rollouts)
         archive = update_archive(comm, behv, archive)
         behv = archive[-1]
-        nov = novelty(behv, archive, cfg.novelty.k)
+        nov = max(1e-2, novelty(behv, archive, cfg.novelty.k))
         policies_novelties.append(nov)
 
     for gen in range(cfg.general.gens):
