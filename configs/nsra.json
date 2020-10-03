@@ -22,7 +22,7 @@
     "gens": 5000,
     "policies_per_gen": 4800,
     "eps_per_policy": 1,
-    "n_policies": 5,
+    "n_policies": 3,
     "batch_size": 500,
     "seed": null
   },
@@ -35,7 +35,7 @@
     "adaptive": true,
     "initial_w": 1,
     "weight_delta": 0.05,
-    "max_time_since_best": 15
+    "max_time_since_best": 10
   },
   "experimental": {
     "max_time_since_best": 15,

@@ -1,5 +1,5 @@
 import random
-from typing import List, Callable, Optional
+from typing import List, Callable
 
 import gym
 import mlflow
@@ -60,11 +60,13 @@ if __name__ == '__main__':
 
     obstat: ObStat = ObStat(env.observation_space.shape, 1e-2)  # eps to prevent dividing by zero at the beginning
 
-    archive: Optional[np.ndarray] = None
+    archive: np.ndarray = np.array([[0., 0., 0.]])
     policies_novelties = []
-    policies_best_rewards = [-np.inf] * cfg.general.n_policies
-    time_since_best = [0 for _ in range(cfg.general.n_policies)]  # TODO should this be per individual?
-    obj_weight = [cfg.nsr.initial_w for _ in range(cfg.general.n_policies)]
+    # policies_best_rewards = [-np.inf] * cfg.general.n_policies
+    # time_since_best = [0 for _ in range(cfg.general.n_policies)]  # TODO should this be per individual?
+    # obj_weight = [cfg.nsr.initial_w for _ in range(cfg.general.n_policies)]
+    w = cfg.nsr.initial_w
+    time_since_best = 0
 
     best_rew = -np.inf
     best_dist = -np.inf
@@ -87,18 +89,20 @@ if __name__ == '__main__':
         nov = max(1e-2, novelty(behv, archive, cfg.novelty.k))
         policies_novelties.append(nov)
 
+    print(archive)
+
     for gen in range(cfg.general.gens):  # main loop
         # picking the policy from the population
         idx = random.choices(list(range(len(policies_novelties))), weights=policies_novelties, k=1)[0]
         idx = comm.scatter([idx] * comm.size)
         nns[idx].set_ob_mean_std(obstat.mean, obstat.std)
-        ranker = MultiObjectiveRanker(CenteredRanker(), obj_weight[idx])
+        ranker = MultiObjectiveRanker(CenteredRanker(), w)
         # reporting
         mlflow_reporter.set_active_run(idx)
         reporter.start_gen()
         reporter.log({'idx': idx})
-        reporter.log({'w': obj_weight[idx]})
-        reporter.log({'time since best': time_since_best[idx]})
+        reporter.log({'w': w})
+        reporter.log({'time since best': time_since_best})
         # running es
         tr, gen_obstat = es.step(cfg, comm, population[idx], optims[idx], nt, env, ns_fn, rs, ranker, reporter)
         # sharing result and obstat
@@ -115,21 +119,21 @@ if __name__ == '__main__':
         rew = tr.reward
         # updating the weighting for NSRA-ES
         if cfg.nsr.adaptive:
-            if rew > policies_best_rewards[idx]:
-                policies_best_rewards[idx] = rew
-                time_since_best[idx] = 0
-                obj_weight[idx] = min(1, obj_weight[idx] + cfg.nsr.weight_delta)
+            if rew > best_rew:
+                time_since_best = 0
+                w = min(1, w + cfg.nsr.weight_delta)
             else:
-                time_since_best[idx] += 1
+                time_since_best += 1
 
-            if time_since_best[idx] > cfg.nsr.max_time_since_best:
-                obj_weight[idx] = max(0, obj_weight[idx] - cfg.nsr.weight_delta)
-                time_since_best[idx] = 0
+            if time_since_best > max(1, w * cfg.nsr.max_time_since_best):  # lower w -> faster decrease
+                w = max(0, w - cfg.nsr.weight_delta)
+                time_since_best = 0
+
+        save_policy = rew > best_rew or dist > best_dist
+        best_rew, best_dist = max(rew, best_rew), max(dist, best_dist)
 
         # Saving policy if it obtained a better reward or distance
-        if (rew > best_rew or dist > best_dist) and comm.rank == 0:
-            best_rew = max(rew, best_rew)
-            best_dist = max(dist, best_dist)
+        if save_policy and comm.rank == 0:
             population[idx].save(f'saved/{cfg.general.name}', str(gen))
             reporter.print(f'saving policy with rew:{rew:0.2f} and dist:{dist:0.2f}')
 

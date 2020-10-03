@@ -27,7 +27,7 @@ class TrainingResult(ABC):
 
     result: Sequence[float] = property(lambda self: self.get_result())
     reward = property(lambda self: sum(self.rewards))
-    behaviour = property(lambda self: self.positions[-3:-1])
+    behaviour = property(lambda self: self.positions[-3:])
 
 
 class RewardResult(TrainingResult):
@@ -37,7 +37,7 @@ class RewardResult(TrainingResult):
 
 class DistResult(TrainingResult):
     def get_result(self) -> List[float]:
-        return [np.linalg.norm(self.positions[-3:-1])]
+        return [np.linalg.norm(self.positions[-3:])]
 
 
 class XDistResult(DistResult):
