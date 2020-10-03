@@ -89,8 +89,6 @@ if __name__ == '__main__':
         nov = max(1e-2, novelty(behv, archive, cfg.novelty.k))
         policies_novelties.append(nov)
 
-    print(archive)
-
     for gen in range(cfg.general.gens):  # main loop
         # picking the policy from the population
         idx = random.choices(list(range(len(policies_novelties))), weights=policies_novelties, k=1)[0]
@@ -121,12 +119,13 @@ if __name__ == '__main__':
         if cfg.nsr.adaptive:
             if rew > best_rew:
                 time_since_best = 0
-                w = min(1, w + cfg.nsr.weight_delta)
+                # w = min(1, w + cfg.nsr.weight_delta)
+                w = 1
             else:
                 time_since_best += 1
 
-            if time_since_best > max(1, w * cfg.nsr.max_time_since_best):  # lower w -> faster decrease
-                w = max(0, w - cfg.nsr.weight_delta)
+            if time_since_best > cfg.nsr.max_time_since_best:
+                w = 0.25 if w == 1 else 1
                 time_since_best = 0
 
         save_policy = rew > best_rew or dist > best_dist
