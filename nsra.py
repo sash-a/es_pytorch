@@ -90,6 +90,9 @@ if __name__ == '__main__':
         policies_novelties.append(nov)
 
     for gen in range(cfg.general.gens):  # main loop
+        if cfg.nsr.adaptive:
+            w = min(1.0, float(gen) / 50.0)
+
         # picking the policy from the population
         idx = random.choices(list(range(len(policies_novelties))), weights=policies_novelties, k=1)[0]
         idx = comm.scatter([idx] * comm.size)
@@ -115,18 +118,21 @@ if __name__ == '__main__':
 
         dist = np.linalg.norm(np.array(tr.positions[-3:-1]))
         rew = tr.reward
+        # TODO initially explore with low `w` then take the n best and train
+        #  treat w as a temprature param where initially low then get higher
         # updating the weighting for NSRA-ES
-        if cfg.nsr.adaptive:
-            if rew > best_rew:
-                time_since_best = 0
-                # w = min(1, w + cfg.nsr.weight_delta)
-                w = 1
-            else:
-                time_since_best += 1
-
-            if time_since_best > cfg.nsr.max_time_since_best:
-                w = 0.25 if w == 1 else 1
-                time_since_best = 0
+        # if cfg.nsr.adaptive:
+        #     if rew > best_rew:
+        #         time_since_best = 0
+        #         # w = min(1, w + cfg.nsr.weight_delta)
+        #         w = 1
+        #     else:
+        #         time_since_best += 1
+        #
+        #     if time_since_best > cfg.nsr.max_time_since_best:
+        #         w = 0.25 if w == 1 else 1
+        #         time_since_best = 0
+        #     w = min(1, 1.5 * np.log(1 + gen) / (1 + np.log(1 + gen)))
 
         save_policy = rew > best_rew or dist > best_dist
         best_rew, best_dist = max(rew, best_rew), max(dist, best_dist)
