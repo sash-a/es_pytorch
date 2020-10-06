@@ -53,7 +53,7 @@ if __name__ == '__main__':
     nns = []
     for _ in range(cfg.general.n_policies):
         nns.append(FullyConnected(int(in_size), int(out_size), 256, 2, torch.nn.Tanh(), env, cfg.policy))
-        population.append(Policy(nns[-1], cfg.noise.std, rs))
+        population.append(Policy(nns[-1], cfg.noise.std))
     # init optimizer and noise table
     optims: List[Optimizer] = [Adam(policy, cfg.policy.lr) for policy in population]
     nt: NoiseTable = NoiseTable.create_shared(comm, cfg.noise.tbl_size, len(population[0]), reporter, cfg.general.seed)
@@ -64,7 +64,6 @@ if __name__ == '__main__':
     policies_novelties = []
     policies_best_rewards = [-np.inf] * cfg.general.n_policies
     time_since_best = [0 for _ in range(cfg.general.n_policies)]  # TODO should this be per individual?
-    obj_weight = [cfg.nsr.initial_w for _ in range(cfg.general.n_policies)]
 
     best_rew = -np.inf
     best_dist = -np.inf
@@ -92,7 +91,7 @@ if __name__ == '__main__':
         idx = random.choices(list(range(len(policies_novelties))), weights=policies_novelties, k=1)[0]
         idx = comm.scatter([idx] * comm.size)
         nns[idx].set_ob_mean_std(obstat.mean, obstat.std)
-        ranker = MultiObjectiveRanker(CenteredRanker(), obj_weight[idx])
+        ranker = MultiObjectiveRanker(CenteredRanker(), -1)
         # reporting
         mlflow_reporter.set_active_run(idx)
         reporter.start_gen()

@@ -13,14 +13,14 @@ def init_normal(m):
 
 
 class Policy(torch.nn.Module):
-    def __init__(self, module: torch.nn.Module, std: float, rs: np.random.RandomState):
+    def __init__(self, module: torch.nn.Module, std: float):
         super().__init__()
         module.apply(init_normal)
 
         self._module: torch.nn.Module = module
         self.std = std
 
-        self.w = 0.5  # rs.uniform(0, 1)
+        self.w = 0.5  # weighting of novelty in ranking function
         self.flat_params: np.ndarray = Policy.get_flat(module)
         # self.activated_w = torch.nn.functional.sigmoid(self.learned_w)
 

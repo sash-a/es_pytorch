@@ -100,21 +100,23 @@ class EliteRanker(Ranker):
 
 class MultiObjectiveRanker(Ranker):
     def __init__(self, ranker: Ranker, w: float):
-        assert 0. <= w <= 1.
+        # assert 0. <= w <= 1.
         super().__init__()
         self.ranker = ranker
         self.w = w
 
     def _rank(self, x: np.ndarray, **kwargs) -> np.ndarray:
         assert x.shape[1] == 2  # this only works for 2 objectives
-        assert kwargs['ws'] is not None
+        assert kwargs['ws'] is not None  # weighting of second objective for each fitness
         assert len(kwargs['ws']) * 2 == len(x)
+        assert all(0 <= w <= 1 for w in kwargs['ws']), f'All weight values must be between 0 and 1 {kwargs["ws"]}'
 
-        ws = kwargs['ws']
+        ws: np.ndarray = kwargs['ws']
         ws = np.repeat(ws, 2)  # one w for pos and neg fitness
 
+        x[:, 0] *= ws  # giving more reward if more emphasis is put on exploration
         ranked = []
         for objective_fits in x.T:
             ranked.append(self.ranker._rank(objective_fits))
 
-        return ranked[0] * ws + ranked[1] * (1 - ws)
+        return ranked[0] * (1 - ws) + ranked[1] * ws

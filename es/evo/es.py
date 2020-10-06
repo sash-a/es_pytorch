@@ -49,7 +49,7 @@ def step(cfg,
 
     for _ in range(eps_per_proc):
         idx, noise = nt.sample(rs, nt.n_params + 1)
-        ws.append(noise[-1])
+        ws.append(noise[-1] * cfg.experimental.w_std)
         noise = noise[:-1]
         inds.append(idx)
         # for each noise ind sampled, both add and subtract the noise
@@ -62,7 +62,7 @@ def step(cfg,
 
     results, ws = _share_results(comm, [tr.result for tr in results_pos], [tr.result for tr in results_neg], inds, ws)
     ranked = ranker.rank(results[:, 0:n_objectives], results[:, n_objectives:2 * n_objectives], results[:, -1],
-                         ws=policy.w + ws)
+                         ws=np.clip(policy.w + ws, 0, 1))
 
     steps = comm.allreduce(sum([tr.steps for tr in results_pos + results_neg]), op=MPI.SUM)
     gen_obstat.mpi_inc(comm)

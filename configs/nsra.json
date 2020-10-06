@@ -42,6 +42,7 @@
     "explore_with_large_noise": false,
     "lr_decay": false,
     "noise_std_decay": false,
-    "elite": 1
+    "elite": 1,
+    "w_std": 0.05
   }
 }
