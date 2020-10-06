@@ -53,7 +53,7 @@ if __name__ == '__main__':
     nns = []
     for _ in range(cfg.general.n_policies):
         nns.append(FullyConnected(int(in_size), int(out_size), 256, 2, torch.nn.Tanh(), env, cfg.policy))
-        population.append(Policy(nns[-1], cfg.noise.std))
+        population.append(Policy(nns[-1], cfg.noise.std, rs))
     # init optimizer and noise table
     optims: List[Optimizer] = [Adam(policy, cfg.policy.lr) for policy in population]
     nt: NoiseTable = NoiseTable.create_shared(comm, cfg.noise.tbl_size, len(population[0]), reporter, cfg.general.seed)
@@ -97,7 +97,7 @@ if __name__ == '__main__':
         mlflow_reporter.set_active_run(idx)
         reporter.start_gen()
         reporter.log({'idx': idx})
-        reporter.log({'w': obj_weight[idx]})
+        reporter.log({'w': population[idx].w})
         reporter.log({'time since best': time_since_best[idx]})
         # running es
         tr, gen_obstat = es.step(cfg, comm, population[idx], optims[idx], nt, env, ns_fn, rs, ranker, reporter)
@@ -113,18 +113,6 @@ if __name__ == '__main__':
 
         dist = np.linalg.norm(np.array(tr.positions[-3:-1]))
         rew = tr.reward
-        # updating the weighting for NSRA-ES
-        if cfg.nsr.adaptive:
-            if rew > policies_best_rewards[idx]:
-                policies_best_rewards[idx] = rew
-                time_since_best[idx] = 0
-                obj_weight[idx] = min(1, obj_weight[idx] + cfg.nsr.weight_delta)
-            else:
-                time_since_best[idx] += 1
-
-            if time_since_best[idx] > cfg.nsr.max_time_since_best:
-                obj_weight[idx] = max(0, obj_weight[idx] - cfg.nsr.weight_delta)
-                time_since_best[idx] = 0
 
         # Saving policy if it obtained a better reward or distance
         if (rew > best_rew or dist > best_dist) and comm.rank == 0:

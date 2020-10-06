@@ -13,14 +13,18 @@ def init_normal(m):
 
 
 class Policy(torch.nn.Module):
-    def __init__(self, module: torch.nn.Module, std: float):
+    def __init__(self, module: torch.nn.Module, std: float, rs: np.random.RandomState):
         super().__init__()
         module.apply(init_normal)
 
         self._module: torch.nn.Module = module
         self.std = std
 
+        self.w = 0.5  # rs.uniform(0, 1)
         self.flat_params: np.ndarray = Policy.get_flat(module)
+        # self.activated_w = torch.nn.functional.sigmoid(self.learned_w)
+
+    flat_params_w = property(lambda self: np.concatenate((self.flat_params, np.array([self.w]))))
 
     def __len__(self):
         return len(self.flat_params)

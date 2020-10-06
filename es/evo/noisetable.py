@@ -33,7 +33,7 @@ class NoiseTable:
     def sample_idx(self, rs: np.random.RandomState, size: int):
         return rs.randint(0, len(self) - size)
 
-    def sample(self, rs: np.random.RandomState = None, size=None) -> Tuple[int, np.ndarray]:
+    def sample(self, rs: np.random.RandomState = None, size: int = None) -> Tuple[int, np.ndarray]:
         if size is None:
             size = self.n_params
 

@@ -10,7 +10,7 @@ class Optimizer(ABC):
     def __init__(self, policy: Policy, lr: float):
         self.policy: Policy = policy
         self.lr: float = lr
-        self.dim: int = len(policy)
+        self.dim: int = len(policy.flat_params_w)
         self.t: int = 0
 
     def step(self, globalg):
@@ -20,8 +20,10 @@ class Optimizer(ABC):
         :return: the new flat_params
         """
         self.t += 1
-        self.policy.flat_params += self._compute_step(globalg)
-        return self.policy.flat_params
+        step = self._compute_step(globalg)
+        param_delta, w_delta = step[:-1], step[-1]
+        self.policy.flat_params += param_delta
+        self.policy.w = np.clip(self.policy.w + w_delta, 0, 1)
 
     @abstractmethod
     def _compute_step(self, globalg):
