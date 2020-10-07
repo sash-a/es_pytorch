@@ -63,11 +63,13 @@ def step(cfg,
     results, ws = _share_results(comm, [tr.result for tr in results_pos], [tr.result for tr in results_neg], inds, ws)
     ranked = ranker.rank(results[:, 0:n_objectives], results[:, n_objectives:2 * n_objectives], results[:, -1],
                          ws=np.clip(policy.w + ws, 0, 1))
+    rews_ranked = CenteredRanker().rank(results[:, 0], results[:, 2], np.array(inds))
+    scaled_ws = np.dot(rews_ranked, np.array(ws))  # only scaling w according the reward not the novelty
 
     steps = comm.allreduce(sum([tr.steps for tr in results_pos + results_neg]), op=MPI.SUM)
     gen_obstat.mpi_inc(comm)
 
-    _approx_grad(ranked, ranker.n_fits_ranked, ranker.noise_inds, nt, policy.flat_params_w, optim, cfg, ws)
+    _approx_grad(ranked, ranker.n_fits_ranked, ranker.noise_inds, nt, policy.flat_params_w, optim, cfg, scaled_ws)
     noiseless_result = fit_fn(policy.pheno(np.zeros(len(policy))), env, cfg.env.max_steps, rs)
     reporter.log_gen(ranker.fits, noiseless_result, policy, steps, time.time() - gen_start)
 
@@ -90,9 +92,8 @@ def _share_results(comm: MPI.Comm,
 
 
 def _approx_grad(ranked: ndarray, n: int, inds: ndarray, nt: NoiseTable, flat_params: ndarray, optim: Optimizer, cfg,
-                 ws):
+                 scaled_ws):
     """approximating gradient and update policy params"""
     grad = scale_noise(ranked, inds, nt, cfg.general.batch_size) / n
-    scaled_w = np.dot(ranked, np.array(ws))
-    grad = np.concatenate((grad, np.array([scaled_w])))
+    grad = np.concatenate((grad, np.array([scaled_ws])))
     optim.step(cfg.policy.l2coeff * flat_params - grad)
