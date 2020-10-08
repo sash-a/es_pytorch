@@ -6,6 +6,13 @@ import numpy as np
 from es.utils.novelty import novelty
 
 
+class SavingResult:
+    def __init__(self, theta: np.ndarray, fit, w: float):
+        self.theta: np.ndarray = theta
+        self.fit = fit
+        self.w: float = w
+
+
 class TrainingResult(ABC):
     """Stores the results of a single training run"""
 

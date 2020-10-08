@@ -5,6 +5,8 @@ from typing import Optional
 
 import numpy as np
 
+from es.utils.training_result import SavingResult
+
 
 def rank(x: np.ndarray):
     """
@@ -111,12 +113,27 @@ class MultiObjectiveRanker(Ranker):
         assert len(kwargs['ws']) * 2 == len(x)
         assert all(0 <= w <= 1 for w in kwargs['ws']), f'All weight values must be between 0 and 1 {kwargs["ws"]}'
 
-        ws: np.ndarray = kwargs['ws']
-        ws = np.repeat(ws, 2)  # one w for pos and neg fitness
+        assert kwargs['gbest'] is not None
+        assert kwargs['lbest'] is not None
 
+        gbest: SavingResult = kwargs['gbest']
+        lbest: SavingResult = kwargs['lbest']
+
+        ws = np.repeat(kwargs['ws'], 2)  # one w for pos and neg fitness
+        ws: np.ndarray = np.concatenate(([gbest.w], [lbest.w], ws), axis=0)
+
+        x = np.concatenate(([gbest.fit], [lbest.fit], x))
+        # x = np.insert(x, 0, [gbest.fit, lbest.fit], axis=1)
         x[:, 0] *= ws  # giving more reward if more emphasis is put on exploration
         ranked = []
         for objective_fits in x.T:
             ranked.append(self.ranker._rank(objective_fits))
 
-        return ranked[0] * (1 - ws) + ranked[1] * ws
+        r = ranked[0] * (1 - ws) + ranked[1] * ws
+        return r[2:], r[:2]
+
+    def rank(self, fits_pos: np.ndarray, fits_neg: np.ndarray, noise_inds: np.ndarray, **kwargs):
+        self._pre_rank(fits_pos, fits_neg, noise_inds)
+        ranked_fits, extra_ranked = self._rank(self.fits, **kwargs)
+        self.ranked_fits = self._post_rank(ranked_fits)
+        return self.ranked_fits, extra_ranked

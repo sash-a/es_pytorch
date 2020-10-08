@@ -1,7 +1,7 @@
 {
   "env": {
     "name": "HopperBulletEnv-v0",
-    "max_steps": 2000
+    "max_steps": 1000
   },
   "noise": {
     "tbl_size": 250000000,
@@ -25,7 +25,7 @@
     "elite": 0.2
   },
   "general": {
-    "name": "hopper_bullet_elite",
+    "name": "hopper_bullet_1ksteps",
     "gens": 2000,
     "policies_per_gen": 4800,
     "eps_per_policy": 1,

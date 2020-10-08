@@ -1,4 +1,3 @@
-import random
 from typing import List, Callable, Optional
 
 import gym
@@ -17,7 +16,7 @@ from es.utils.novelty import update_archive, novelty
 from es.utils.obstat import ObStat
 from es.utils.ranking_functions import CenteredRanker, MultiObjectiveRanker
 from es.utils.reporters import LoggerReporter, ReporterSet, StdoutReporter, MLFlowReporter
-from es.utils.training_result import NSRResult, NSResult
+from es.utils.training_result import NSRResult, NSResult, SavingResult
 from es.utils.utils import generate_seed
 
 
@@ -62,8 +61,6 @@ if __name__ == '__main__':
 
     archive: Optional[np.ndarray] = None
     policies_novelties = []
-    policies_best_rewards = [-np.inf] * cfg.general.n_policies
-    time_since_best = [0 for _ in range(cfg.general.n_policies)]  # TODO should this be per individual?
 
     best_rew = -np.inf
     best_dist = -np.inf
@@ -86,10 +83,16 @@ if __name__ == '__main__':
         nov = max(1e-2, novelty(behv, archive, cfg.novelty.k))
         policies_novelties.append(nov)
 
+    # init global and local bests
+    local_bests = [SavingResult(policy.flat_params, ns_fn(policy.pheno(np.zeros(len(policy))), env).result, 1) for policy in population]
+    global_best = SavingResult(population[0].flat_params, local_bests[0].fit, 1)
+
+
     for gen in range(cfg.general.gens):  # main loop
         # picking the policy from the population
-        idx = random.choices(list(range(len(policies_novelties))), weights=policies_novelties, k=1)[0]
-        idx = comm.scatter([idx] * comm.size)
+        # idx = random.choices(list(range(len(policies_novelties))), weights=policies_novelties, k=1)[0]
+        # idx = comm.scatter([idx] * comm.size)
+        idx = gen % cfg.general.n_policies  # round robin selection
         nns[idx].set_ob_mean_std(obstat.mean, obstat.std)
         ranker = MultiObjectiveRanker(CenteredRanker(), -1)
         # reporting
@@ -97,9 +100,9 @@ if __name__ == '__main__':
         reporter.start_gen()
         reporter.log({'idx': idx})
         reporter.log({'w': population[idx].w})
-        reporter.log({'time since best': time_since_best[idx]})
         # running es
-        tr, gen_obstat = es.step(cfg, comm, population[idx], optims[idx], nt, env, ns_fn, rs, ranker, reporter)
+        tr, gen_obstat, gen_best = es.step(cfg, comm, population[idx], optims[idx], nt, env, ns_fn, local_bests[idx],
+                                           global_best, rs, ranker, reporter)
         # sharing result and obstat
         tr = comm.scatter([tr] * comm.size)
         gen_obstat.mpi_inc(comm)
@@ -112,6 +115,10 @@ if __name__ == '__main__':
 
         dist = np.linalg.norm(np.array(tr.positions[-3:-1]))
         rew = tr.reward
+
+        print(f'gen_best')
+        local_bests[idx] = max(local_bests[idx], gen_best, key=lambda x: x.fit[0])
+        global_best = max(global_best, gen_best, key=lambda x: x.fit[0])
 
         # Saving policy if it obtained a better reward or distance
         if (rew > best_rew or dist > best_dist) and comm.rank == 0:

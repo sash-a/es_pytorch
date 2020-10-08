@@ -18,7 +18,7 @@
     "save_obs_chance": 0.01
   },
   "general": {
-    "name": "hopper_bullet_nsra",
+    "name": "hopper_bullet_nsra_bestpull-rr",
     "gens": 5000,
     "policies_per_gen": 4800,
     "eps_per_policy": 1,
