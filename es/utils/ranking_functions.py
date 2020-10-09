@@ -110,26 +110,36 @@ class MultiObjectiveRanker(Ranker):
     def _rank(self, x: np.ndarray, **kwargs) -> np.ndarray:
         assert x.shape[1] == 2  # this only works for 2 objectives
         assert kwargs['ws'] is not None  # weighting of second objective for each fitness
-        assert len(kwargs['ws']) * 2 == len(x)
+        assert len(kwargs['ws']) == len(x)
         assert all(0 <= w <= 1 for w in kwargs['ws']), f'All weight values must be between 0 and 1 {kwargs["ws"]}'
 
+        ws = kwargs['ws']
+        # x[:, 0] *= ws  # giving more reward if more emphasis is put on exploration
+        ranked = []
+        for objective_fits in x.T:
+            ranked.append(self.ranker._rank(objective_fits))
+
+        return ranked[0] * (1 - ws) + ranked[1] * ws
+
+
+class GBestRanker(Ranker):
+    def __init__(self, ranker: Ranker):
+        super().__init__()
+        self.ranker = ranker
+
+    def _rank(self, x: np.ndarray, **kwargs) -> np.ndarray:
         assert kwargs['gbest'] is not None
         assert kwargs['lbest'] is not None
 
         gbest: SavingResult = kwargs['gbest']
         lbest: SavingResult = kwargs['lbest']
 
-        ws = np.repeat(kwargs['ws'], 2)  # one w for pos and neg fitness
-        ws: np.ndarray = np.concatenate(([gbest.w], [lbest.w], ws), axis=0)
-
         x = np.concatenate(([gbest.fit], [lbest.fit], x))
-        # x = np.insert(x, 0, [gbest.fit, lbest.fit], axis=1)
-        x[:, 0] *= ws  # giving more reward if more emphasis is put on exploration
-        ranked = []
-        for objective_fits in x.T:
-            ranked.append(self.ranker._rank(objective_fits))
 
-        r = ranked[0] * (1 - ws) + ranked[1] * ws
+        if 'ws' in kwargs:
+            kwargs['ws']: np.ndarray = np.concatenate(([gbest.w], [lbest.w], kwargs['ws']), axis=0)
+
+        r = self.ranker._rank(x, **kwargs)
         return r[2:], r[:2]
 
     def rank(self, fits_pos: np.ndarray, fits_neg: np.ndarray, noise_inds: np.ndarray, **kwargs):

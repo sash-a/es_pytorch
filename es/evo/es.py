@@ -67,11 +67,23 @@ def step(cfg,
     ranked, extra_ranked = ranker.rank(results[:, 0:n_objectives],
                                        results[:, n_objectives:2 * n_objectives],
                                        results[:, -1],
-                                       ws=np.clip(policy.w + ws, 0, 1),
+                                       ws=np.repeat(np.clip(policy.w + ws, 0, 1), 2),
                                        lbest=local_best,
                                        gbest=global_best)
 
-    extra_scaled_noise = np.dot(extra_ranked, np.array([global_best.theta - policy.flat_params, local_best.theta]))
+    reporter.print(f'[in]gbest rank:{extra_ranked[0]} - {global_best.fit}')
+    reporter.print(f'[in]lbest rank:{extra_ranked[1]} - {local_best.fit}')
+
+    noise_mags = []
+    for i in ranker.noise_inds:
+        noise_mags.append(np.linalg.norm(nt[int(i)]))
+    mean_noise_mag = np.mean(noise_mags)
+    reporter.print(f'avg noise mag:{mean_noise_mag}')
+
+    gbest_dir, lbest_dir = global_best.theta - policy.flat_params, local_best.theta - policy.flat_params
+    extra_scaled_noise = np.dot(extra_ranked, np.array(
+        [(gbest_dir / np.linalg.norm(gbest_dir)) * mean_noise_mag,
+         (lbest_dir / np.linalg.norm(lbest_dir)) * mean_noise_mag]))
 
     rews_ranked = CenteredRanker().rank(results[:, 0], results[:, 2], np.array(inds))
     scaled_ws = np.dot(rews_ranked, np.array(ws))  # only scaling w according the reward not the novelty
@@ -88,7 +100,8 @@ def step(cfg,
     best_theta = policy.flat_params + \
                  ranker.noise_inds[idx_best] if idx_best < len(ranker.noise_inds) else -ranker.noise_inds[
         idx_best % len(ranker.noise_inds)]
-    best = SavingResult(best_theta, ranker.fits[idx_best], ws[idx_best % len(ranker.noise_inds)])
+    best = SavingResult(best_theta, ranker.fits[idx_best],
+                        np.clip(policy.w + ws[idx_best % len(ranker.noise_inds)], 0, 1))
     return noiseless_result, gen_obstat, best
 
 

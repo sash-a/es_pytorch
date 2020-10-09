@@ -14,7 +14,7 @@ from es.nn.optimizers import Adam, Optimizer
 from es.utils import utils, gym_runner
 from es.utils.novelty import update_archive, novelty
 from es.utils.obstat import ObStat
-from es.utils.ranking_functions import CenteredRanker, MultiObjectiveRanker
+from es.utils.ranking_functions import CenteredRanker, MultiObjectiveRanker, GBestRanker
 from es.utils.reporters import LoggerReporter, ReporterSet, StdoutReporter, MLFlowReporter
 from es.utils.training_result import NSRResult, NSResult, SavingResult
 from es.utils.utils import generate_seed
@@ -69,6 +69,7 @@ if __name__ == '__main__':
     def ns_fn(model: torch.nn.Module, e: gym.Env, max_steps: int = 2000, r: np.random.RandomState = None) -> NSRResult:
         """Reward function"""
         rews, behv, obs, steps = gym_runner.run_model(model, e, max_steps, r)
+        # return RewardResult(rews, behv, obs, steps)
         return NSRResult(rews, behv, obs, steps, archive, cfg.novelty.k)
 
 
@@ -84,9 +85,9 @@ if __name__ == '__main__':
         policies_novelties.append(nov)
 
     # init global and local bests
-    local_bests = [SavingResult(policy.flat_params, ns_fn(policy.pheno(np.zeros(len(policy))), env).result, 1) for policy in population]
-    global_best = SavingResult(population[0].flat_params, local_bests[0].fit, 1)
-
+    local_bests = [SavingResult(policy.flat_params + np.array([1e-4] * len(policy)),
+                                ns_fn(policy.pheno(np.zeros(len(policy))), env).result, 1) for policy in population]
+    global_best = SavingResult(population[0].flat_params + np.array([1e-4] * len(population[0])), local_bests[0].fit, 1)
 
     for gen in range(cfg.general.gens):  # main loop
         # picking the policy from the population
@@ -94,15 +95,15 @@ if __name__ == '__main__':
         # idx = comm.scatter([idx] * comm.size)
         idx = gen % cfg.general.n_policies  # round robin selection
         nns[idx].set_ob_mean_std(obstat.mean, obstat.std)
-        ranker = MultiObjectiveRanker(CenteredRanker(), -1)
+        ranker = GBestRanker(MultiObjectiveRanker(CenteredRanker(), -1))
         # reporting
         mlflow_reporter.set_active_run(idx)
         reporter.start_gen()
         reporter.log({'idx': idx})
         reporter.log({'w': population[idx].w})
         # running es
-        tr, gen_obstat, gen_best = es.step(cfg, comm, population[idx], optims[idx], nt, env, ns_fn, local_bests[idx],
-                                           global_best, rs, ranker, reporter)
+        tr, gen_obstat, gen_best = es.step(cfg, comm, population[idx], optims[idx], nt, env, ns_fn, global_best,
+                                           local_bests[idx], rs, ranker, reporter)
         # sharing result and obstat
         tr = comm.scatter([tr] * comm.size)
         gen_obstat.mpi_inc(comm)
@@ -116,7 +117,9 @@ if __name__ == '__main__':
         dist = np.linalg.norm(np.array(tr.positions[-3:-1]))
         rew = tr.reward
 
-        print(f'gen_best')
+        reporter.print(f'[out]gbest rank:{global_best.fit}')
+        reporter.print(f'[out]lbest rank:{local_bests[idx].fit}')
+
         local_bests[idx] = max(local_bests[idx], gen_best, key=lambda x: x.fit[0])
         global_best = max(global_best, gen_best, key=lambda x: x.fit[0])
 
