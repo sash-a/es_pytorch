@@ -1,6 +1,6 @@
 {
   "env": {
-    "name": "HopperBulletEnv-v0",
+    "name": "ml-agents/envs/Worm/Headless/WormHeadless.x86_64",
     "max_steps": 2000
   },
   "noise": {
@@ -25,7 +25,7 @@
     "elite": 0.2
   },
   "general": {
-    "name": "hopper_bullet_elite",
+    "name": "worm_unity",
     "gens": 2000,
     "policies_per_gen": 4800,
     "eps_per_policy": 1,

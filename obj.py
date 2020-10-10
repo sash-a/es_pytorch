@@ -2,6 +2,9 @@ import gym
 import mlflow
 import numpy as np
 import torch
+from gym_unity.envs import UnityToGymWrapper
+from mlagents_envs.environment import UnityEnvironment
+from mlagents_envs.side_channel.engine_configuration_channel import EngineConfigurationChannel
 from mpi4py import MPI
 
 import es.evo.es as es
@@ -30,7 +33,10 @@ if __name__ == '__main__':
         mlflow_reporter
     )
 
-    env: gym.Env = gym.make(cfg.env.name)
+    channel = EngineConfigurationChannel()
+    unity_env = UnityEnvironment(cfg.env.name, comm.rank, no_graphics=True, side_channels=[channel])
+    channel.set_configuration_parameters(time_scale=100.0)
+    env = UnityToGymWrapper(unity_env)
 
     # seeding
     cfg.general.seed = (generate_seed(comm) if cfg.general.seed is None else cfg.general.seed)

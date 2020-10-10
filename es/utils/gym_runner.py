@@ -20,7 +20,6 @@ def run_model(model: torch.nn.Module,
     behv = []
     rews = []
     obs = []
-
     with torch.no_grad():
         ob = env.reset()
         for step in range(max_steps):
@@ -31,7 +30,7 @@ def run_model(model: torch.nn.Module,
                 obs.append(ob)
 
             rews += [rew]
-            behv.extend(_get_pos(env.unwrapped))
+            # behv.extend(_get_pos(env.unwrapped))
 
             if render:
                 env.render()
@@ -41,7 +40,7 @@ def run_model(model: torch.nn.Module,
 
     if not save_obs:
         obs.append(np.zeros(ob.shape))
-
+    behv = [0, 0, 0]
     behv += behv[-3:] * (max_steps - int(len(behv) / 3))  # extending the behaviour vector to have `max_steps` elements
     return rews, behv, np.array(obs), step
 
