@@ -67,18 +67,15 @@ def step(cfg,
     ranked, extra_ranked = ranker.rank(results[:, 0:n_objectives],
                                        results[:, n_objectives:2 * n_objectives],
                                        results[:, -1],
-                                       ws=np.repeat(np.clip(policy.w + ws, 0, 1), 2),
+                                       # ws=np.repeat(np.clip(policy.w + ws, 0, 1), 2),
                                        lbest=local_best,
                                        gbest=global_best)
-
-    reporter.print(f'[in]gbest rank:{extra_ranked[0]} - {global_best.fit}')
-    reporter.print(f'[in]lbest rank:{extra_ranked[1]} - {local_best.fit}')
 
     noise_mags = []
     for i in ranker.noise_inds:
         noise_mags.append(np.linalg.norm(nt[int(i)]))
     mean_noise_mag = np.mean(noise_mags)
-    reporter.print(f'avg noise mag:{mean_noise_mag}')
+    reporter.log({'avg noise mag': float(mean_noise_mag)})
 
     gbest_dir, lbest_dir = global_best.theta - policy.flat_params, local_best.theta - policy.flat_params
     extra_scaled_noise = np.dot(extra_ranked, np.array(

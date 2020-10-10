@@ -1,3 +1,4 @@
+import random
 from typing import List, Callable, Optional
 
 import gym
@@ -56,12 +57,12 @@ if __name__ == '__main__':
     # init optimizer and noise table
     optims: List[Optimizer] = [Adam(policy, cfg.policy.lr) for policy in population]
     nt: NoiseTable = NoiseTable.create_shared(comm, cfg.noise.tbl_size, len(population[0]), reporter, cfg.general.seed)
-
     obstat: ObStat = ObStat(env.observation_space.shape, 1e-2)  # eps to prevent dividing by zero at the beginning
 
     archive: Optional[np.ndarray] = None
     policies_novelties = []
-
+    time_since_best = 0
+    nov_weight = cfg.nsr.initial_w
     best_rew = -np.inf
     best_dist = -np.inf
 
@@ -91,16 +92,21 @@ if __name__ == '__main__':
 
     for gen in range(cfg.general.gens):  # main loop
         # picking the policy from the population
-        # idx = random.choices(list(range(len(policies_novelties))), weights=policies_novelties, k=1)[0]
-        # idx = comm.scatter([idx] * comm.size)
-        idx = gen % cfg.general.n_policies  # round robin selection
-        nns[idx].set_ob_mean_std(obstat.mean, obstat.std)
-        ranker = GBestRanker(MultiObjectiveRanker(CenteredRanker(), -1))
+        if cfg.general.selection == 'weighted':
+            idx = random.choices(list(range(len(policies_novelties))), weights=policies_novelties, k=1)[0]
+            idx = comm.scatter([idx] * comm.size)
+        elif cfg.general.selection == 'rr':
+            idx = gen % cfg.general.n_policies  # round robin selection
+            nns[idx].set_ob_mean_std(obstat.mean, obstat.std)
+        else:
+            raise NotImplementedError(f'cfg.general.selection is:{cfg.general.selection}. Options: "rr" or "weighted"')
+        ranker = GBestRanker(MultiObjectiveRanker(CenteredRanker(), nov_weight))
         # reporting
         mlflow_reporter.set_active_run(idx)
         reporter.start_gen()
         reporter.log({'idx': idx})
-        reporter.log({'w': population[idx].w})
+        # reporter.log({'w': population[idx].w})
+        reporter.log({'nov w': nov_weight})
         # running es
         tr, gen_obstat, gen_best = es.step(cfg, comm, population[idx], optims[idx], nt, env, ns_fn, global_best,
                                            local_bests[idx], rs, ranker, reporter)
@@ -117,8 +123,17 @@ if __name__ == '__main__':
         dist = np.linalg.norm(np.array(tr.positions[-3:-1]))
         rew = tr.reward
 
-        reporter.print(f'[out]gbest rank:{global_best.fit}')
-        reporter.print(f'[out]lbest rank:{local_bests[idx].fit}')
+        if cfg.nsr.adaptive:  # updating the weighting for NSRA-ES
+            if rew > best_rew:
+                best_rew = rew
+                time_since_best = 0
+                nov_weight = 0  # max(0, nov_weight - cfg.nsr.weight_delta)
+            else:
+                time_since_best += 1
+
+            if time_since_best > cfg.nsr.max_time_since_best:
+                nov_weight = min(1, nov_weight + cfg.nsr.weight_delta)
+                time_since_best = 0
 
         local_bests[idx] = max(local_bests[idx], gen_best, key=lambda x: x.fit[0])
         global_best = max(global_best, gen_best, key=lambda x: x.fit[0])

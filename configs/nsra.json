@@ -24,7 +24,8 @@
     "eps_per_policy": 1,
     "n_policies": 5,
     "batch_size": 500,
-    "seed": null
+    "seed": null,
+    "selection": "rr"
   },
   "novelty": {
     "k": 10,
@@ -33,7 +34,7 @@
   },
   "nsr": {
     "adaptive": true,
-    "initial_w": 1,
+    "initial_w": 0,
     "weight_delta": 0.05,
     "max_time_since_best": 15
   },
