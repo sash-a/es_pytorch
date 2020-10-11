@@ -215,7 +215,10 @@ class MLFlowReporter(MPIReporter):
     def __init__(self, comm: MPI.Comm, cfg_file: str, cfg):
         super().__init__(comm)
         if comm.rank == MPIReporter.MAIN:
-            set_experiment(cfg.env.name)
+            exp_name = cfg.env.name
+            if '/' in cfg.env.name:
+                exp_name = cfg.env.name.split('/')[-1]
+            set_experiment(exp_name)
             start_run(run_name=cfg.general.name)
             log_params(json_normalize(json.load(open(cfg_file))).to_dict(orient='records')[0])
 

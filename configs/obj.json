@@ -1,7 +1,7 @@
 {
   "env": {
-    "name": "ml-agents/envs/Worm/Headless/WormHeadless.x86_64",
-    "max_steps": 2000
+    "name": "ml-agents/envs/Walker/Headless/WalkerHeadless.x86_64",
+    "max_steps": 500
   },
   "noise": {
     "tbl_size": 250000000,
