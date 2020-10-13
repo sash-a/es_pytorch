@@ -179,6 +179,7 @@ class LoggerReporter(MPIReporter):
             self.cum_steps = 0
 
     def _start_gen(self):
+        logging.info('----------------------------------------')
         logging.info(f'gen:{self.gen}')
 
     def _log_gen(self, fits: np.ndarray, noiseless_tr: TrainingResult, policy: Policy, steps: int,

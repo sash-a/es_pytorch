@@ -1,10 +1,9 @@
+import logging
+
 import gym
 import mlflow
 import numpy as np
 import torch
-from gym_unity.envs import UnityToGymWrapper
-from mlagents_envs.environment import UnityEnvironment
-from mlagents_envs.side_channel.engine_configuration_channel import EngineConfigurationChannel
 from mpi4py import MPI
 
 import es.evo.es as es
@@ -19,12 +18,13 @@ from es.utils.reporters import LoggerReporter, ReporterSet, StdoutReporter, MLFl
 from es.utils.training_result import TrainingResult, RewardResult
 from es.utils.utils import generate_seed
 
+cfg_file = utils.parse_args()
+cfg = utils.load_config(cfg_file)
+logging.basicConfig(filename=f'logs/{cfg.general.name}.log', level=logging.DEBUG)
+
 if __name__ == '__main__':
     comm: MPI.Comm = MPI.COMM_WORLD
     gym.logger.set_level(40)
-
-    cfg_file = utils.parse_args()
-    cfg = utils.load_config(cfg_file)
 
     mlflow_reporter = MLFlowReporter(comm, cfg_file, cfg)
     reporter = ReporterSet(
@@ -33,9 +33,13 @@ if __name__ == '__main__':
         mlflow_reporter
     )
 
+    from gym_unity.envs import UnityToGymWrapper
+    from mlagents_envs.environment import UnityEnvironment
+    from mlagents_envs.side_channel.engine_configuration_channel import EngineConfigurationChannel
+
     channel = EngineConfigurationChannel()
     unity_env = UnityEnvironment(cfg.env.name, comm.rank, no_graphics=True, side_channels=[channel])
-    channel.set_configuration_parameters(time_scale=100.0)
+    channel.set_configuration_parameters(time_scale=50.0)
     env = UnityToGymWrapper(unity_env)
 
     # seeding
