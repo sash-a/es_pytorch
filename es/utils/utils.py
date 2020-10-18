@@ -1,8 +1,12 @@
 import argparse
 import json
 from types import SimpleNamespace
+from typing import Optional
 
+import gym
 import numpy as np
+import torch
+from mpi4py import MPI
 
 from es.evo.noisetable import NoiseTable
 
@@ -49,3 +53,13 @@ def load_config(cfg_file: str):
 
 def generate_seed(comm) -> int:
     return comm.scatter([np.random.randint(0, 1000000)] * comm.size)
+
+
+def seed(comm: MPI.Comm, seed: int, env: Optional[gym.Env]) -> np.random.RandomState:
+    """Seeds torch, the env and returns a random state that is different for each MPI proc"""
+    rs = np.random.RandomState(seed + 10000 * comm.rank)  # This seed must be different on each proc
+    torch.random.manual_seed(seed)  # This seed must be the same on each proc for generating initial params
+    if env is not None:
+        env.seed(seed)
+
+    return rs

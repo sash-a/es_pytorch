@@ -1,0 +1,22 @@
+{
+  "env": {
+    "name": "HopperBulletEnv-v0"
+  },
+  "noise": {
+    "tbl_size": 250000000,
+    "std": 0.02
+  },
+  "policy": {
+    "ac_std": 0.01,
+    "l2coeff": 0.005,
+    "lr": 0.01,
+    "save_obs_chance": 0.01
+  },
+  "general": {
+    "name": "hopper",
+    "gens": 500,
+    "policies_per_gen": 4800,
+    "batch_size": 500,
+    "seed": null
+  }
+}

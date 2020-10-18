@@ -34,9 +34,7 @@ if __name__ == '__main__':
 
     # seeding
     cfg.general.seed = (generate_seed(comm) if cfg.general.seed is None else cfg.general.seed)
-    rs = np.random.RandomState(cfg.general.seed + 10000 * comm.rank)  # This seed must be different on each proc
-    torch.random.manual_seed(cfg.general.seed)  # This seed must be the same on each proc for generating initial params
-    env.seed(cfg.general.seed)
+    rs = utils.seed(comm, cfg.general.seed, env)
     reporter.print(f'seed:{cfg.general.seed}')
 
     # initializing policy, optimizer, noise and env
@@ -60,9 +58,9 @@ if __name__ == '__main__':
     best_dist = -np.inf
 
 
-    def r_fn(model: torch.nn.Module, e: gym.Env, max_steps: int, r: np.random.RandomState = None) -> TrainingResult:
-        save_obs = (r.random() if r is not None else np.random.random()) < cfg.policy.save_obs_chance
-        rews, behv, obs, steps = gym_runner.run_model(model, e, max_steps, r, save_obs)
+    def r_fn(model: torch.nn.Module) -> TrainingResult:
+        save_obs = rs.random() < cfg.policy.save_obs_chance
+        rews, behv, obs, steps = gym_runner.run_model(model, env, cfg.env.max_steps, rs, save_obs)
         return RewardResult(rews, behv, obs, steps)
 
 

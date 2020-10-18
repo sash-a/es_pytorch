@@ -33,10 +33,11 @@ if __name__ == '__main__':
     cfg_file = utils.parse_args()
     cfg = utils.load_config(cfg_file)
 
+    env: gym.Env = gym.make(cfg.env.name)
+
     # seeding
     cfg.general.seed = (generate_seed(comm) if cfg.general.seed is None else cfg.general.seed)
-    torch.random.manual_seed(cfg.general.seed)
-    rs = np.random.RandomState(cfg.general.seed + 10000 * comm.rank)
+    rs = utils.seed(comm, cfg.general.seed, env)
 
     mlflow_reporter = MLFlowReporter(comm, cfg_file, cfg)
     reporter = ReporterSet(
@@ -46,7 +47,6 @@ if __name__ == '__main__':
     )
     reporter.print(f'seed:{cfg.general.seed}')
 
-    env: gym.Env = gym.make(cfg.env.name)
     # init population
     in_size, out_size = np.prod(env.observation_space.shape), np.prod(env.action_space.shape)
     population = []
@@ -70,9 +70,9 @@ if __name__ == '__main__':
     best_dist = -np.inf
 
 
-    def ns_fn(model: torch.nn.Module, e: gym.Env, max_steps: int = 2000, r: np.random.RandomState = None) -> NSRResult:
+    def ns_fn(model: torch.nn.Module) -> NSRResult:
         """Reward function"""
-        rews, behv, obs, steps = gym_runner.run_model(model, e, max_steps, r)
+        rews, behv, obs, steps = gym_runner.run_model(model, env, cfg.env.max_steps, rs)
         return NSRResult(rews, behv, obs, steps, archive, cfg.novelty.k)
 
 
