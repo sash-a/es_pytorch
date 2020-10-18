@@ -11,7 +11,7 @@ from es.nn.nn import FullyConnected
 from es.nn.optimizers import Adam, Optimizer
 from es.utils import utils, gym_runner
 from es.utils.obstat import ObStat
-from es.utils.ranking_functions import CenteredRanker, EliteRanker, DoublePositiveCenteredRanker
+from es.utils.rankers import CenteredRanker, EliteRanker
 from es.utils.reporters import LoggerReporter, ReporterSet, StdoutReporter, MLFlowReporter
 from es.utils.training_result import TrainingResult, RewardResult
 from es.utils.utils import generate_seed
@@ -50,8 +50,8 @@ if __name__ == '__main__':
     optim: Optimizer = Adam(policy, cfg.policy.lr)
     nt: NoiseTable = NoiseTable.create_shared(comm, cfg.noise.tbl_size, len(policy), reporter, cfg.general.seed)
 
-    ranker = DoublePositiveCenteredRanker()
-    if cfg.experimental.elite < 1:
+    ranker = CenteredRanker()
+    if 0 < cfg.experimental.elite < 1:
         ranker = EliteRanker(CenteredRanker(), cfg.experimental.elite)
 
     best_rew = -np.inf
@@ -93,7 +93,7 @@ if __name__ == '__main__':
         if time_since_best > cfg.experimental.max_time_since_best and cfg.experimental.explore_with_large_noise:
             cfg.noise.std = policy.std = policy.std + noise_std_inc
 
-        if cfg.experimental.elite < 1:  # using elite extension
+        if 0 < cfg.experimental.elite < 1:  # using elite extension
             if time_since_best > cfg.experimental.max_time_since_best and cfg.experimental.elite < 1:
                 ranker.elite_percent = cfg.experimental.elite
             if time_since_best == 0:

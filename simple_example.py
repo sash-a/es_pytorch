@@ -10,7 +10,7 @@ from es.nn.nn import FullyConnected
 from es.nn.optimizers import Adam, Optimizer
 from es.utils import utils, gym_runner
 from es.utils.obstat import ObStat
-from es.utils.ranking_functions import CenteredRanker
+from es.utils.rankers import CenteredRanker
 from es.utils.training_result import TrainingResult, RewardResult
 from es.utils.utils import generate_seed
 

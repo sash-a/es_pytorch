@@ -17,7 +17,7 @@ from es.evo.noisetable import NoiseTable
 from es.evo.policy import Policy
 from es.nn.optimizers import Optimizer
 from es.utils.obstat import ObStat
-from es.utils.ranking_functions import Ranker, CenteredRanker
+from es.utils.rankers import Ranker, CenteredRanker
 from es.utils.reporters import StdoutReporter, Reporter
 from es.utils.training_result import TrainingResult
 from es.utils.utils import scale_noise
@@ -36,9 +36,9 @@ def step(cfg,
          reporter: Reporter = StdoutReporter(MPI.COMM_WORLD)) -> [TrainingResult, ObStat]:
     """
     Runs a single generation of ES
-    :param fit_fn: Evaluates the policy returns a TrainingResult
-    :param ranker: A subclass of `Ranker` that is able to rank the fitnesses
-    :returns: TrainingResult of the noiseless policy at that generation
+    :param fit_fn: Evaluates the policy returns a :class:`TrainingResult`
+    :param ranker: A subclass of :class:`Ranker` that is able to rank the fitnesses
+    :returns: :class:`TrainingResult` of the noiseless policy at that generation
     """
     assert cfg.general.policies_per_gen % comm.size == 0 and (cfg.general.policies_per_gen / comm.size) % 2 == 0
     eps_per_proc = int((cfg.general.policies_per_gen / comm.size) / 2)
@@ -55,7 +55,8 @@ def step(cfg,
     return noiseless_result, gen_obstat
 
 
-def test_params(comm: MPI.Comm, n: int, policy: Policy, nt: NoiseTable, gen_obstat: ObStat, fit_fn, rs: RandomState) \
+def test_params(comm: MPI.Comm, n: int, policy: Policy, nt: NoiseTable, gen_obstat: ObStat,
+                fit_fn: Callable[[Module], TrainingResult], rs: RandomState) \
         -> Tuple[np.ndarray, np.ndarray, np.ndarray, int]:
     """
     Tests `n` different perturbations of `policy`'s params and returns the positive and negative results
@@ -88,7 +89,7 @@ def _share_results(comm: MPI.Comm,
                    fits_pos: List[List[float]],
                    fits_neg: List[List[float]],
                    inds: List[int]) -> ndarray:
-    """share results and noise inds to all processes"""
+    """Share results and noise inds to all processes"""
     send_results = np.array([fp + fn + [i] for fp, fn, i in zip(fits_pos, fits_neg, inds)] * comm.size, dtype=np.float)
     results = np.empty(send_results.shape)
     comm.Alltoall(send_results, results)
@@ -98,8 +99,7 @@ def _share_results(comm: MPI.Comm,
     return results.reshape((-1, 1 + 2 * objectives))  # flattening the process dim
 
 
-def approx_grad(ranked: ndarray, n: int, inds: ndarray, nt: NoiseTable, flat_params: ndarray, optim: Optimizer,
-                batch_size: int, l2coeff: float):
-    """approximating gradient and update policy params"""
-    grad = scale_noise(ranked, inds, nt, batch_size) / n
-    optim.step(l2coeff * flat_params - grad)
+def approx_grad(ranker: Ranker, nt: NoiseTable, params: ndarray, optim: Optimizer, batch_size: int, l2coeff: float):
+    """Approximating gradient and update policy params"""
+    grad = scale_noise(ranker.ranked_fits, ranker.noise_inds, nt, batch_size) / ranker.n_fits_ranked
+    optim.step(l2coeff * params - grad)

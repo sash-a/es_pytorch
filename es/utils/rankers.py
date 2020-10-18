@@ -10,6 +10,7 @@ def rank(x: np.ndarray):
     """
     Returns ranks in [0, len(x))
     Note: This is different from scipy.stats.rankdata, which returns ranks in [1, len(x)].
+
     """
     assert x.ndim == 1
     ranks = np.empty(len(x), dtype=int)
@@ -81,11 +82,12 @@ class SemiCenteredRanker(Ranker):
 class EliteRanker(Ranker):
     def __init__(self, ranker: Ranker, elite_percent: float):
         super().__init__()
+        assert 0 <= elite_percent <= 1
         self.ranker = ranker
         self.elite_percent = elite_percent
 
     def _rank(self, x: np.ndarray) -> np.ndarray:
-        ranked = self.ranker._rank(self.fits_pos)
+        ranked = self.ranker._rank(self.fits)
         n_elite = max(1, int(ranked.size * self.elite_percent))
         elite_fit_inds = np.argpartition(ranked, -n_elite)[-n_elite:]
         # setting the noise inds to only be the inds of the elite
@@ -113,29 +115,3 @@ class MultiObjectiveRanker(Ranker):
             ranked.append(self.ranker._rank(objective_fits))
 
         return ranked[0] * self.w + ranked[1] * (1 - self.w)
-
-# def moo_weighted_rank(x: np.ndarray, w: float, rank_fn):
-#     assert 0. <= w <= 1.
-#     assert x.shape[1] == 2  # this only works for 2 objectives
-#
-#     ranked = []
-#     for col in x.T:
-#         ranked.append(rank_fn(col))
-#
-#     return ranked[0] * w + ranked[1] * (1 - w)
-#
-#
-# def moo_mean_rank(x: np.ndarray, rank_fn):
-#     """
-#     Wrapper for rank functions to work on multi-objective fitness. Returns the mean of the ranked objectives for each
-#      individual.
-#
-#     x: [[obj1, obj2,...]  - individual 1
-#         [obj1, obj2,...], - individual 2
-#         ... ]             - individual n
-#     """
-#     ranked = []
-#     for col in x.T:
-#         ranked.append(rank_fn(col))
-#
-#     return np.mean(ranked, axis=0)

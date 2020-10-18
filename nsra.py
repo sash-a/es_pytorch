@@ -15,7 +15,7 @@ from es.nn.optimizers import Adam, Optimizer
 from es.utils import utils, gym_runner
 from es.utils.novelty import update_archive, novelty
 from es.utils.obstat import ObStat
-from es.utils.ranking_functions import CenteredRanker, MultiObjectiveRanker
+from es.utils.rankers import CenteredRanker, MultiObjectiveRanker
 from es.utils.reporters import LoggerReporter, ReporterSet, StdoutReporter, MLFlowReporter
 from es.utils.training_result import NSRResult, NSResult
 from es.utils.utils import generate_seed

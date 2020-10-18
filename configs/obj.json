@@ -22,7 +22,7 @@
     "explore_with_large_noise": false,
     "lr_decay": false,
     "noise_std_decay": false,
-    "elite": 0.2
+    "elite": 1
   },
   "general": {
     "name": "hopper_bullet_elite",
