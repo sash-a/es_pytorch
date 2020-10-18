@@ -54,10 +54,9 @@ if __name__ == '__main__':
         # obtaining the fitnesses from many perturbed policies
         pos_fits, neg_fits, inds, steps = es.test_params(comm, eps_per_proc, policy, nt, gen_obstat, r_fn, rs)
         # ranking the fitnesses between -1 and 1
-        ranked_fits = ranker.rank(pos_fits, neg_fits, inds)
+        ranker.rank(pos_fits, neg_fits, inds)
         # approximating the gradient and updating policy.flat_params (pseudo backprop)
-        es.approx_grad(ranked_fits, ranker.n_fits_ranked, ranker.noise_inds, nt, policy.flat_params, optim,
-                       cfg.general.batch_size, cfg.policy.l2coeff)
+        es.approx_grad(ranker, nt, policy.flat_params, optim, cfg.general.batch_size, cfg.policy.l2coeff)
 
         obstat += gen_obstat  # adding the new observations to the global obstat
 

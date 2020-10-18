@@ -46,9 +46,8 @@ def step(cfg,
     gen_start = time.time()  # TODO make this internal to reporters?
     gen_obstat = ObStat(env.observation_space.shape, 0)
     pos_res, neg_res, inds, steps = test_params(comm, eps_per_proc, policy, nt, gen_obstat, fit_fn, rs)
-    ranked_fits = ranker.rank(pos_res, neg_res, inds)
-    approx_grad(ranked_fits, ranker.n_fits_ranked, ranker.noise_inds, nt, policy.flat_params, optim,
-                cfg.general.batch_size, cfg.policy.l2coeff)
+    ranker.rank(pos_res, neg_res, inds)
+    approx_grad(ranker, nt, policy.flat_params, optim, cfg.general.batch_size, cfg.policy.l2coeff)
     noiseless_result = fit_fn(policy.pheno(np.zeros(len(policy))))
     reporter.log_gen(ranker.fits, noiseless_result, policy, steps, time.time() - gen_start)
 
