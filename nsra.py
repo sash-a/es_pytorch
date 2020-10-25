@@ -21,8 +21,8 @@ from es.utils.training_result import NSRResult, NSResult
 from es.utils.utils import generate_seed
 
 
-def mean_behv(policy: Policy, r_fn: Callable[[torch.nn.Module, gym.Env], NSResult], e: gym.Env, rollouts: int):
-    behvs = [r_fn(policy.pheno(np.zeros(len(policy))), e).behaviour for _ in range(rollouts)]
+def mean_behv(policy: Policy, r_fn: Callable[[torch.nn.Module], NSResult], rollouts: int):
+    behvs = [r_fn(policy.pheno(np.zeros(len(policy)))).behaviour for _ in range(rollouts)]
     return np.mean(behvs, axis=0)
 
 
@@ -81,7 +81,7 @@ if __name__ == '__main__':
         behv = None
         nov = None
         if comm.rank == 0:
-            behv = mean_behv(policy, ns_fn, env, cfg.novelty.rollouts)
+            behv = mean_behv(policy, ns_fn, cfg.novelty.rollouts)
         archive = update_archive(comm, behv, archive)
         behv = archive[-1]
         nov = max(1e-2, novelty(behv, archive, cfg.novelty.k))
@@ -106,7 +106,7 @@ if __name__ == '__main__':
         gen_obstat.mpi_inc(comm)
         obstat += gen_obstat
         # updating the weighting for choosing the next policy to be evaluated
-        behv = comm.scatter([mean_behv(population[idx], ns_fn, env, cfg.novelty.rollouts)] * comm.size)
+        behv = comm.scatter([mean_behv(population[idx], ns_fn, cfg.novelty.rollouts)] * comm.size)
         nov = comm.scatter([novelty(behv, archive, cfg.novelty.k)] * comm.size)
         archive = update_archive(comm, behv, archive)  # adding new behaviour and sharing archive
         policies_novelties[idx] = nov

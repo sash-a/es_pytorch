@@ -56,6 +56,7 @@ if __name__ == '__main__':
 
     best_rew = -np.inf
     best_dist = -np.inf
+    best_max_rew = -np.inf  # highest achieved in any gen
 
 
     def r_fn(model: torch.nn.Module) -> TrainingResult:
@@ -86,8 +87,9 @@ if __name__ == '__main__':
 
         dist = np.linalg.norm(np.array(tr.positions[-3:-1]))
         rew = np.sum(tr.rewards)
+        max_rew = np.max(ranker.fits[:, 0])
 
-        time_since_best = 0 if rew > best_rew else time_since_best + 1
+        time_since_best = 0 if max_rew > best_max_rew else time_since_best + 1
         reporter.log({'time since best': time_since_best})
         # increasing noise std if policy is stuck
         if time_since_best > cfg.experimental.max_time_since_best and cfg.experimental.explore_with_large_noise:
@@ -103,6 +105,7 @@ if __name__ == '__main__':
         save_policy = (rew > best_rew or dist > best_dist)
         best_rew = max(rew, best_rew)
         best_dist = max(dist, best_dist)
+        best_max_rew = (best_max_rew, max_rew)
 
         # Saving policy if it obtained a better reward or distance
         if save_policy and comm.rank == 0:
