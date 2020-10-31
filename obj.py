@@ -66,7 +66,7 @@ if __name__ == '__main__':
 
 
     time_since_best = 0
-    noise_std_inc = 0.01
+    noise_std_inc = 0.08
     for gen in range(cfg.general.gens):
         mlflow_reporter.set_active_run(0)
         reporter.start_gen()

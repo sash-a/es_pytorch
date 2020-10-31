@@ -22,18 +22,17 @@ if __name__ == '__main__':
 
     env: gym.Env = gym.make(cfg.env.name)
 
-    # seeding
+    # seeding; this must be done before creating the neural network so that params are deterministic across processes
     cfg.general.seed = (generate_seed(comm) if cfg.general.seed is None else cfg.general.seed)
     rs = utils.seed(comm, cfg.general.seed, env)
 
-    # initializing policy, optimizer, noise and env
+    # initializing obstat, policy, optimizer, noise and ranker
     obstat: ObStat = ObStat(env.observation_space.shape, 1e-2)  # eps to prevent dividing by zero at the beginning
     nn = FullyConnected(int(np.prod(env.observation_space.shape)), int(np.prod(env.action_space.shape)),
                         256, 2, torch.nn.Tanh(), env, cfg.policy)
     policy: Policy = Policy(nn, cfg.noise.std)
     optim: Optimizer = Adam(policy, cfg.policy.lr)
     nt: NoiseTable = NoiseTable.create_shared(comm, cfg.noise.tbl_size, len(policy), None, cfg.general.seed)
-
     ranker = CenteredRanker()
 
 
@@ -53,12 +52,10 @@ if __name__ == '__main__':
         gen_obstat = ObStat(env.observation_space.shape, 0)  # for normalizing the observation space
         # obtaining the fitnesses from many perturbed policies
         pos_fits, neg_fits, inds, steps = es.test_params(comm, eps_per_proc, policy, nt, gen_obstat, r_fn, rs)
-        # ranking the fitnesses between -1 and 1
-        ranker.rank(pos_fits, neg_fits, inds)
+        obstat += gen_obstat  # adding the new observations to the global obstat
+        ranker.rank(pos_fits, neg_fits, inds)  # ranking the fitnesses between -1 and 1
         # approximating the gradient and updating policy.flat_params (pseudo backprop)
         es.approx_grad(ranker, nt, policy.flat_params, optim, cfg.general.batch_size, cfg.policy.l2coeff)
-
-        obstat += gen_obstat  # adding the new observations to the global obstat
 
         if comm.rank == 0: print(f'avg fitness:{np.mean(np.concatenate((pos_fits, neg_fits)))}\n\n')
         if gen % 10 and comm.rank == 0:  # save policy every 10 generations
