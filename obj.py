@@ -96,6 +96,7 @@ if __name__ == '__main__':
         es.approx_grad(ranker, nt, policy.flat_params, optim, cfg.general.batch_size, cfg.policy.l2coeff)
 
         tr = r_fn(policy.pheno(np.zeros(len(policy))))  # noiseless result after param update
+        reporter.log_gen(ranker.fits, tr, policy, steps)
 
         cfg.noise.std = policy.std = max(cfg.noise.std * cfg.noise.std_decay, cfg.noise.std_limit)
         cfg.policy.lr = optim.lr = max(cfg.policy.lr * cfg.policy.lr_decay, cfg.policy.lr_limit)
