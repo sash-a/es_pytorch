@@ -105,7 +105,7 @@ if __name__ == '__main__':
         save_policy = (rew > best_rew or dist > best_dist)
         best_rew = max(rew, best_rew)
         best_dist = max(dist, best_dist)
-        best_max_rew = (best_max_rew, max_rew)
+        best_max_rew = max(best_max_rew, max_rew)
 
         # Saving policy if it obtained a better reward or distance
         if save_policy and comm.rank == 0:
