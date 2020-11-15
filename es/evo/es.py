@@ -72,13 +72,16 @@ def test_params(comm: MPI.Comm, n: int, policy: Policy, nt: NoiseTable, gen_obst
     """
     results_pos, results_neg, stds, inds = [], [], [], []
     orig_std = policy.std
+    tau = 2 / np.sqrt(len(policy))
+    alpha = 1 + tau
+
     for _ in range(n):
         idx, noise = nt.sample(rs)
         inds.append(idx)
 
-        tau = 1 / np.sqrt(len(policy))
-        newstd = policy.std = orig_std * np.exp(tau * nt.sample(rs, 1)[1][0])
-        stds.append(newstd)
+        policy.std = orig_std * alpha if rs.uniform() > 0.5 else orig_std / alpha  # two point rule
+        # policy.std = orig_std * np.exp(tau * nt.sample(rs, 1)[1][0])  #
+        stds.append(policy.std)
 
         # for each noise ind sampled, both add and subtract the noise
         results_pos.append(fit_fn(policy.pheno(noise)))
