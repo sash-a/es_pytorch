@@ -39,7 +39,7 @@ if __name__ == '__main__':
     cfg.general.seed = (generate_seed(comm) if cfg.general.seed is None else cfg.general.seed)
     rs = utils.seed(comm, cfg.general.seed, env)
 
-    mlflow_reporter = MLFlowReporter(comm, cfg_file, cfg)
+    mlflow_reporter = MLFlowReporter(comm, cfg_file, cfg) if cfg.general.mlflow else None
     reporter = ReporterSet(
         LoggerReporter(comm, cfg, cfg.general.name),
         StdoutReporter(comm),
@@ -94,7 +94,7 @@ if __name__ == '__main__':
         nns[idx].set_ob_mean_std(obstat.mean, obstat.std)
         ranker = MultiObjectiveRanker(CenteredRanker(), obj_weight[idx])
         # reporting
-        mlflow_reporter.set_active_run(idx)
+        if cfg.general.mlflow: mlflow_reporter.set_active_run(idx)
         reporter.start_gen()
         reporter.log({'idx': idx})
         reporter.log({'w': obj_weight[idx]})

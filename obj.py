@@ -23,7 +23,7 @@ if __name__ == '__main__':
     cfg_file = utils.parse_args()
     cfg = utils.load_config(cfg_file)
 
-    mlflow_reporter = MLFlowReporter(comm, cfg_file, cfg)
+    mlflow_reporter = MLFlowReporter(comm, cfg_file, cfg) if cfg.general.mlflow else None
     reporter = ReporterSet(
         LoggerReporter(comm, cfg, cfg.general.name),
         StdoutReporter(comm),
@@ -68,7 +68,7 @@ if __name__ == '__main__':
     time_since_best = 0
     noise_std_inc = 0.08
     for gen in range(cfg.general.gens):
-        mlflow_reporter.set_active_run(0)
+        if cfg.general.mlflow: mlflow_reporter.set_active_run(0)
         reporter.start_gen()
 
         if cfg.noise.std_decay != 1:

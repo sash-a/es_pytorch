@@ -25,12 +25,13 @@
     "elite": 1
   },
   "general": {
-    "name": "hopper_bullet_elite",
-    "gens": 2000,
-    "policies_per_gen": 4800,
+    "name": "hopper_bullet_obj",
+    "gens": 5000,
+    "policies_per_gen": 9600,
     "eps_per_policy": 1,
     "n_policies": 1,
     "batch_size": 500,
-    "seed": null
+    "seed": null,
+    "mlflow": true
   }
 }

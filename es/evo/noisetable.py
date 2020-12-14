@@ -31,7 +31,9 @@ class NoiseTable:
         return self.noise[i:i + size]
 
     def sample_idx(self, rs: np.random.RandomState, size: int):
-        return rs.randint(0, len(self) - size)
+        upper_bound = len(self) - size
+        if upper_bound <= 0: raise ValueError(f'Network (size:{size}) is too large for noise table (size:{len(self)})')
+        return rs.randint(0, upper_bound)
 
     def sample(self, rs: np.random.RandomState = None, size=None) -> Tuple[int, np.ndarray]:
         if size is None:

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import time
 from collections.abc import Callable
 from typing import List, Tuple
 
@@ -43,13 +42,12 @@ def step(cfg,
     assert cfg.general.policies_per_gen % comm.size == 0 and (cfg.general.policies_per_gen / comm.size) % 2 == 0
     eps_per_proc = int((cfg.general.policies_per_gen / comm.size) / 2)
 
-    gen_start = time.time()  # TODO make this internal to reporters?
     gen_obstat = ObStat(env.observation_space.shape, 0)
     pos_res, neg_res, inds, steps = test_params(comm, eps_per_proc, policy, nt, gen_obstat, fit_fn, rs)
     ranker.rank(pos_res, neg_res, inds)
     approx_grad(ranker, nt, policy.flat_params, optim, cfg.general.batch_size, cfg.policy.l2coeff)
     noiseless_result = fit_fn(policy.pheno(np.zeros(len(policy))))
-    reporter.log_gen(ranker.fits, noiseless_result, policy, steps, time.time() - gen_start)
+    reporter.log_gen(ranker.fits, noiseless_result, policy, steps)
 
     return noiseless_result, gen_obstat
 

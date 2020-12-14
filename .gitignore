@@ -1,8 +1,13 @@
 .idea/
 **/__pycache__/
 saved/
-wandb/
+
 **/homeconf.json
 **/*.log
-mlruns/
+
+bullet3/
 mujoco-py/
+ml-agents/
+
+mlruns/
+.mlruns_old/

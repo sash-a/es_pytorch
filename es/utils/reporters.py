@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+import time
 from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import Tuple, Dict
@@ -21,13 +22,14 @@ def calc_dist_rew(tr: TrainingResult) -> Tuple[float, float]:
 
 
 class Reporter(ABC):
+    """Absolute base class reporter, should rather subclass MpiReporter"""
+
     @abstractmethod
     def start_gen(self):
         pass
 
     @abstractmethod
-    def log_gen(self, fits: np.ndarray, noiseless_tr: TrainingResult, policy: Policy, steps: int,
-                time: float):
+    def log_gen(self, fits: np.ndarray, noiseless_tr: TrainingResult, policy: Policy, steps: int):
         pass
 
     @abstractmethod
@@ -53,10 +55,9 @@ class ReporterSet(Reporter):
         for reporter in self.reporters:
             reporter.start_gen()
 
-    def log_gen(self, fits: np.ndarray, noiseless_tr: TrainingResult, policy: Policy, steps: int,
-                time: float):
+    def log_gen(self, fits: np.ndarray, noiseless_tr: TrainingResult, policy: Policy, steps: int):
         for reporter in self.reporters:
-            reporter.log_gen(fits, noiseless_tr, policy, steps, time)
+            reporter.log_gen(fits, noiseless_tr, policy, steps)
 
     def end_gen(self):
         for reporter in self.reporters:
@@ -71,31 +72,39 @@ class ReporterSet(Reporter):
             reporter.log(d)
 
 
-class MPIReporter(Reporter, ABC):
+class MpiReporter(Reporter, ABC):
+    """Thread safe reporter"""
     MAIN = 0
 
     def __init__(self, comm: MPI.Comm):
         self.comm = comm
 
+        self._start_time = 0
+        self.total_time = 0
+
+        self.gen = 0
+
     def start_gen(self):
-        if self.comm.rank == MPIReporter.MAIN:
+        if self.comm.rank == MpiReporter.MAIN:
+            self._start_time = time.time()
+            self.gen += 1
             self._start_gen()
 
-    def log_gen(self, fits: np.ndarray, noiseless_tr: TrainingResult, policy: Policy, steps: int,
-                time: float):
-        if self.comm.rank == MPIReporter.MAIN:
-            self._log_gen(fits, noiseless_tr, policy, steps, time)
+    def log_gen(self, fits: np.ndarray, noiseless_tr: TrainingResult, policy: Policy, steps: int):
+        if self.comm.rank == MpiReporter.MAIN:
+            self._log_gen(fits, noiseless_tr, policy, steps)
 
     def end_gen(self):
-        if self.comm.rank == MPIReporter.MAIN:
+        if self.comm.rank == MpiReporter.MAIN:
+            self.total_time = time.time() - self._start_time
             self._end_gen()
 
     def print(self, s: str):
-        if self.comm.rank == MPIReporter.MAIN:
+        if self.comm.rank == MpiReporter.MAIN:
             self._print(s)
 
     def log(self, d: Dict[str, float]):
-        if self.comm.rank == MPIReporter.MAIN:
+        if self.comm.rank == MpiReporter.MAIN:
             self._log(d)
 
     @abstractmethod
@@ -103,8 +112,7 @@ class MPIReporter(Reporter, ABC):
         pass
 
     @abstractmethod
-    def _log_gen(self, fits: np.ndarray, noiseless_tr: TrainingResult, policy: Policy, steps: int,
-                 time: float):
+    def _log_gen(self, fits: np.ndarray, noiseless_tr: TrainingResult, policy: Policy, steps: int):
         pass
 
     @abstractmethod
@@ -120,11 +128,10 @@ class MPIReporter(Reporter, ABC):
         pass
 
 
-class StdoutReporter(MPIReporter):
+class StdoutReporter(MpiReporter):
     def __init__(self, comm: MPI.Comm):
         super().__init__(comm)
         if comm.rank == 0:
-            self.gen = 0
             self.cum_steps = 0
 
     def _start_gen(self):
@@ -132,8 +139,7 @@ class StdoutReporter(MPIReporter):
               f'----------------------------------------'
               f'\ngen:{self.gen}')
 
-    def _log_gen(self, fits: np.ndarray, noiseless_tr: TrainingResult, policy: Policy, steps: int,
-                 time: float):
+    def _log_gen(self, fits: np.ndarray, noiseless_tr: TrainingResult, policy: Policy, steps: int):
         for i, col in enumerate(fits.T):
             # Objectives are grouped by column so this finds the avg and max of each objective
             print(f'obj {i} avg:{np.mean(col):0.2f}')
@@ -148,10 +154,9 @@ class StdoutReporter(MPIReporter):
 
         print(f'steps:{steps}')
         print(f'cum steps:{self.cum_steps}')
-        print(f'time:{time:0.2f}')
 
     def _end_gen(self):
-        self.gen += 1
+        print(f'time:{self.total_time:0.2f}')
 
     def _print(self, s: str):
         print(s)
@@ -161,7 +166,7 @@ class StdoutReporter(MPIReporter):
             print(f'{k}:{v}')
 
 
-class LoggerReporter(MPIReporter):
+class LoggerReporter(MpiReporter):
     def __init__(self, comm: MPI.Comm, cfg, log_name=None):
         super().__init__(comm)
 
@@ -181,8 +186,7 @@ class LoggerReporter(MPIReporter):
     def _start_gen(self):
         logging.info(f'gen:{self.gen}')
 
-    def _log_gen(self, fits: np.ndarray, noiseless_tr: TrainingResult, policy: Policy, steps: int,
-                 time: float):
+    def _log_gen(self, fits: np.ndarray, noiseless_tr: TrainingResult, policy: Policy, steps: int):
         for i, col in enumerate(fits.T):
             # Objectives are grouped by column so this finds the avg and max of each objective
             logging.info(f'obj {i} avg:{np.mean(col):0.2f}')
@@ -197,10 +201,9 @@ class LoggerReporter(MPIReporter):
 
         logging.info(f'steps:{steps}')
         logging.info(f'cum steps:{self.cum_steps}')
-        logging.info(f'time:{time:0.2f}')
 
     def _end_gen(self):
-        self.gen += 1
+        logging.info(f'time:{self.total_time:0.2f}')
 
     def _print(self, s: str):
         logging.info(s)
@@ -210,11 +213,10 @@ class LoggerReporter(MPIReporter):
             logging.info(f'{k}:{v}')
 
 
-class MLFlowReporter(MPIReporter):
-
+class MLFlowReporter(MpiReporter):
     def __init__(self, comm: MPI.Comm, cfg_file: str, cfg):
         super().__init__(comm)
-        if comm.rank == MPIReporter.MAIN:
+        if comm.rank == MpiReporter.MAIN:
             set_experiment(cfg.env.name)
             start_run(run_name=cfg.general.name)
             log_params(json_normalize(json.load(open(cfg_file))).to_dict(orient='records')[0])
@@ -229,7 +231,7 @@ class MLFlowReporter(MPIReporter):
                     self.run_ids.append(run.info.run_id)
 
     def set_active_run(self, i: int):
-        if self.comm.rank == MPIReporter.MAIN:
+        if self.comm.rank == MpiReporter.MAIN:
             self.active_run = i
 
     def start_active_run(self):
@@ -241,7 +243,7 @@ class MLFlowReporter(MPIReporter):
     def _start_gen(self):
         pass
 
-    def _log_gen(self, fits: np.ndarray, noiseless_tr: TrainingResult, policy: Policy, steps: int, time: float):
+    def _log_gen(self, fits: np.ndarray, noiseless_tr: TrainingResult, policy: Policy, steps: int):
         with self.start_active_run():
             for i, col in enumerate(fits.T):
                 # Objectives are grouped by column so this finds the avg and max of each objective
@@ -255,11 +257,12 @@ class MLFlowReporter(MPIReporter):
             log_metric('rew', rew, self.gens[self.active_run])
             log_metric(f'steps', steps, self.gens[self.active_run])
             log_metric(f'cum steps', self.cum_steps, self.gens[self.active_run])
-            log_metric('time', time, self.gens[self.active_run])
+            log_metric('time', self.total_time, self.gens[self.active_run])
 
     def _end_gen(self):
         self.gens[self.active_run] += 1
         self.active_run = None
+        logging.info(f'time:{self.total_time:0.2f}')
 
     def _print(self, s: str):
         pass
