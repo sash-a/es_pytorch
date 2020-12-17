@@ -33,10 +33,13 @@
     "rollouts": 5
   },
   "nsr": {
-    "adaptive": true,
+    "adaptive": false,
     "initial_w": 1,
     "weight_delta": 0.05,
-    "max_time_since_best": 15
+    "max_time_since_best": 15,
+
+    "progressive": true,
+    "end_progression_gen" : 750
   },
   "experimental": {
     "max_time_since_best": 15,

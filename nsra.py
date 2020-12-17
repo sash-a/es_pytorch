@@ -1,5 +1,5 @@
 import random
-from typing import List, Callable, Optional
+from typing import List, Callable, Optional, Tuple
 
 import gym
 import mlflow
@@ -26,13 +26,42 @@ def mean_behv(policy: Policy, r_fn: Callable[[torch.nn.Module], NSResult], rollo
     return np.mean(behvs, axis=0)
 
 
-if __name__ == '__main__':
-    comm: MPI.Comm = MPI.COMM_WORLD
-    gym.logger.set_level(40)
+def init_archive(pop: List[Policy], fn) -> Tuple[np.ndarray, List[float]]:
+    """initializing the archive and policy weighting"""
+    archive = None
+    policies_novelties = []
 
-    cfg_file = utils.parse_args()
-    cfg = utils.load_config(cfg_file)
+    for policy in pop:
+        b = None  # behaviour
+        if comm.rank == 0:
+            b = mean_behv(policy, fn, cfg.novelty.rollouts)
+        archive = update_archive(comm, b, archive)
+        b = archive[-1]
+        nov = max(1e-2, novelty(b, archive, cfg.novelty.k))
+        policies_novelties.append(nov)
 
+    return archive, policies_novelties
+
+
+def nsra(reward: float, obj_w: float, best_reward: float, time_since_best_reward: int) -> Tuple[float, float, float]:
+    """
+    Updates the weighting for NSRA-ES
+
+    :returns Tuple[objective weighting, best reward, time since best]
+    """
+    if reward > best_reward:
+        return min(1, obj_w + cfg.nsr.weight_delta), reward, 0
+    else:
+        time_since_best_reward += 1
+
+        if time_since_best_reward > cfg.nsr.max_time_since_best:
+            obj_w = max(0, obj_w - cfg.nsr.weight_delta)
+            time_since_best_reward = 0
+
+        return obj_w, best_reward, time_since_best_reward
+
+
+def main(cfg):
     env: gym.Env = gym.make(cfg.env.name)
 
     # seeding
@@ -47,6 +76,18 @@ if __name__ == '__main__':
     )
     reporter.print(f'seed:{cfg.general.seed}')
 
+    if cfg.nsr.adaptive:
+        reporter.print("NSRA")
+    elif cfg.nsr.progressive:
+        reporter.print("P-NSRA")
+
+    archive: Optional[np.ndarray] = None
+
+    def ns_fn(model: torch.nn.Module) -> NSRResult:
+        """Reward function"""
+        rews, behv, obs, steps = gym_runner.run_model(model, env, cfg.env.max_steps, rs)
+        return NSRResult(rews, behv, obs, steps, archive, cfg.novelty.k)
+
     # init population
     in_size, out_size = np.prod(env.observation_space.shape), np.prod(env.action_space.shape)
     population = []
@@ -60,8 +101,6 @@ if __name__ == '__main__':
 
     obstat: ObStat = ObStat(env.observation_space.shape, 1e-2)  # eps to prevent dividing by zero at the beginning
 
-    archive: Optional[np.ndarray] = None
-    policies_novelties = []
     policies_best_rewards = [-np.inf] * cfg.general.n_policies
     time_since_best = [0 for _ in range(cfg.general.n_policies)]  # TODO should this be per individual?
     obj_weight = [cfg.nsr.initial_w for _ in range(cfg.general.n_policies)]
@@ -69,27 +108,12 @@ if __name__ == '__main__':
     best_rew = -np.inf
     best_dist = -np.inf
 
-
-    def ns_fn(model: torch.nn.Module) -> NSRResult:
-        """Reward function"""
-        rews, behv, obs, steps = gym_runner.run_model(model, env, cfg.env.max_steps, rs)
-        return NSRResult(rews, behv, obs, steps, archive, cfg.novelty.k)
-
-
-    # initializing the archive and policy weighting
-    for policy in population:
-        behv = None
-        nov = None
-        if comm.rank == 0:
-            behv = mean_behv(policy, ns_fn, cfg.novelty.rollouts)
-        archive = update_archive(comm, behv, archive)
-        behv = archive[-1]
-        nov = max(1e-2, novelty(behv, archive, cfg.novelty.k))
-        policies_novelties.append(nov)
+    archive, policies_novelties = init_archive(population, ns_fn)
 
     for gen in range(cfg.general.gens):  # main loop
         # picking the policy from the population
         idx = random.choices(list(range(len(policies_novelties))), weights=policies_novelties, k=1)[0]
+        if cfg.nsr.progressive: idx = gen % cfg.general.n_policies
         idx = comm.scatter([idx] * comm.size)
         nns[idx].set_ob_mean_std(obstat.mean, obstat.std)
         ranker = MultiObjectiveRanker(CenteredRanker(), obj_weight[idx])
@@ -113,18 +137,13 @@ if __name__ == '__main__':
 
         dist = np.linalg.norm(np.array(tr.positions[-3:-1]))
         rew = tr.reward
-        # updating the weighting for NSRA-ES
-        if cfg.nsr.adaptive:
-            if rew > policies_best_rewards[idx]:
-                policies_best_rewards[idx] = rew
-                time_since_best[idx] = 0
-                obj_weight[idx] = min(1, obj_weight[idx] + cfg.nsr.weight_delta)
-            else:
-                time_since_best[idx] += 1
 
-            if time_since_best[idx] > cfg.nsr.max_time_since_best:
-                obj_weight[idx] = max(0, obj_weight[idx] - cfg.nsr.weight_delta)
-                time_since_best[idx] = 0
+        if cfg.nsr.adaptive:
+            obj_weight[idx], policies_best_rewards[idx], time_since_best[idx] = nsra(rew, obj_weight[idx],
+                                                                                     policies_best_rewards[idx],
+                                                                                     time_since_best[idx])
+        elif cfg.nsr.progressive:
+            obj_weight[idx] = 1 if gen > cfg.nsr.end_progression_gen else gen / cfg.nsr.end_progression_gen
 
         # Saving policy if it obtained a better reward or distance
         if (rew > best_rew or dist > best_dist) and comm.rank == 0:
@@ -135,4 +154,14 @@ if __name__ == '__main__':
 
         reporter.end_gen()
 
-    mlflow.end_run()  # ending the outer mlfow run
+    mlflow.end_run()  # ending the outer mlflow run
+
+
+if __name__ == '__main__':
+    comm: MPI.Comm = MPI.COMM_WORLD
+    gym.logger.set_level(40)
+
+    cfg_file = utils.parse_args()
+    cfg = utils.load_config(cfg_file)
+
+    main(cfg)
