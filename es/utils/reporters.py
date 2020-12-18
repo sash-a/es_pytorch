@@ -167,7 +167,7 @@ class StdoutReporter(MpiReporter):
 
 
 class LoggerReporter(MpiReporter):
-    def __init__(self, comm: MPI.Comm, cfg, log_name=None):
+    def __init__(self, comm: MPI.Comm, log_name=None):
         super().__init__(comm)
 
         if log_name is None:
@@ -177,7 +177,6 @@ class LoggerReporter(MpiReporter):
 
         if comm.rank == 0:
             self.gen = 0
-            self.cfg = cfg
 
             self.best_rew = 0
             self.best_dist = 0

@@ -70,7 +70,7 @@ def main(cfg):
 
     mlflow_reporter = MLFlowReporter(comm, cfg_file, cfg) if cfg.general.mlflow else None
     reporter = ReporterSet(
-        LoggerReporter(comm, cfg, cfg.general.name),
+        LoggerReporter(comm, f'{cfg.env.name}-{cfg.general.name}'),
         StdoutReporter(comm),
         mlflow_reporter
     )
