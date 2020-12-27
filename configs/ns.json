@@ -18,7 +18,7 @@
     "save_obs_chance": 0.01
   },
   "general": {
-    "name": "hopper_bullet_ns",
+    "name": "ns",
     "gens": 5000,
     "policies_per_gen": 9600,
     "eps_per_policy": 1,
@@ -36,7 +36,9 @@
     "adaptive": false,
     "initial_w": 0,
     "weight_delta": 0.05,
-    "max_time_since_best": 15
+    "max_time_since_best": 15,
+    "progressive": false,
+    "end_progression_gen": 750
   },
   "experimental": {
     "max_time_since_best": 15,

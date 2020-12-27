@@ -1,12 +1,12 @@
 import argparse
 import json
-from types import SimpleNamespace
 from typing import Optional
 
 import gym
 import numpy as np
 import torch
 from mpi4py import MPI
+from munch import Munch, munchify
 
 from es.evo.noisetable import NoiseTable
 
@@ -46,9 +46,12 @@ def parse_args():
     return parser.parse_args().config
 
 
-def load_config(cfg_file: str):
-    """:returns: a SimpleNamespace from a json file"""
-    return json.load(open(cfg_file), object_hook=lambda d: SimpleNamespace(**d))
+def load_config(cfg_file: str) -> Munch:
+    """:returns: a Munch from a json file"""
+    with open(cfg_file) as f:
+        d = json.load(f)
+
+    return munchify(d)
 
 
 def generate_seed(comm) -> int:

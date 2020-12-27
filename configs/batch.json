@@ -1,0 +1,10 @@
+{
+  "configs/ns.json": {
+    "runs": 10,
+    "overrides": {}
+  },
+  "configs/obj.json": {
+    "runs": 10,
+    "overrides": {}
+  }
+}

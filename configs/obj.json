@@ -25,7 +25,7 @@
     "elite": 1
   },
   "general": {
-    "name": "hopper_bullet_obj",
+    "name": "obj",
     "gens": 5000,
     "policies_per_gen": 9600,
     "eps_per_policy": 1,

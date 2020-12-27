@@ -16,14 +16,11 @@ from es.utils.reporters import LoggerReporter, ReporterSet, StdoutReporter, MLFl
 from es.utils.training_result import TrainingResult, RewardResult
 from es.utils.utils import generate_seed
 
-if __name__ == '__main__':
+
+def main(cfg):
     comm: MPI.Comm = MPI.COMM_WORLD
-    gym.logger.set_level(40)
 
-    cfg_file = utils.parse_args()
-    cfg = utils.load_config(cfg_file)
-
-    mlflow_reporter = MLFlowReporter(comm, cfg_file, cfg) if cfg.general.mlflow else None
+    mlflow_reporter = MLFlowReporter(comm, cfg) if cfg.general.mlflow else None
     reporter = ReporterSet(
         LoggerReporter(comm, f'{cfg.env.name}-{cfg.general.name}'),
         StdoutReporter(comm),
@@ -58,12 +55,10 @@ if __name__ == '__main__':
     best_dist = -np.inf
     best_max_rew = -np.inf  # highest achieved in any gen
 
-
     def r_fn(model: torch.nn.Module) -> TrainingResult:
         save_obs = rs.random() < cfg.policy.save_obs_chance
         rews, behv, obs, steps = gym_runner.run_model(model, env, cfg.env.max_steps, rs, save_obs)
         return RewardResult(rews, behv, obs, steps)
-
 
     time_since_best = 0
     noise_std_inc = 0.08
@@ -114,3 +109,12 @@ if __name__ == '__main__':
 
         reporter.end_gen()
     mlflow.end_run()  # in the case where mlflow is the reporter, just ending its run
+
+
+if __name__ == '__main__':
+    gym.logger.set_level(40)
+
+    config_file = utils.parse_args()
+    config = utils.load_config(config_file)
+
+    main(config)

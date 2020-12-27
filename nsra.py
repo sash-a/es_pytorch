@@ -6,6 +6,7 @@ import mlflow
 import numpy as np
 import torch
 from mpi4py import MPI
+from munch import Munch
 
 import es.evo.es as es
 from es.evo.noisetable import NoiseTable
@@ -26,7 +27,7 @@ def mean_behv(policy: Policy, r_fn: Callable[[torch.nn.Module], NSResult], rollo
     return np.mean(behvs, axis=0)
 
 
-def init_archive(pop: List[Policy], fn) -> Tuple[np.ndarray, List[float]]:
+def init_archive(comm, cfg, pop: List[Policy], fn) -> Tuple[np.ndarray, List[float]]:
     """initializing the archive and policy weighting"""
     archive = None
     policies_novelties = []
@@ -43,7 +44,7 @@ def init_archive(pop: List[Policy], fn) -> Tuple[np.ndarray, List[float]]:
     return archive, policies_novelties
 
 
-def nsra(reward: float, obj_w: float, best_reward: float, time_since_best_reward: int) -> Tuple[float, float, float]:
+def nsra(cfg: Munch, reward: float, obj_w: float, best_reward: float, time_since_best_reward: int) -> Tuple[float, float, float]:
     """
     Updates the weighting for NSRA-ES
 
@@ -61,14 +62,15 @@ def nsra(reward: float, obj_w: float, best_reward: float, time_since_best_reward
         return obj_w, best_reward, time_since_best_reward
 
 
-def main(cfg):
+def main(cfg: Munch):
+    comm: MPI.Comm = MPI.COMM_WORLD
     env: gym.Env = gym.make(cfg.env.name)
 
     # seeding
     cfg.general.seed = (generate_seed(comm) if cfg.general.seed is None else cfg.general.seed)
     rs = utils.seed(comm, cfg.general.seed, env)
 
-    mlflow_reporter = MLFlowReporter(comm, cfg_file, cfg) if cfg.general.mlflow else None
+    mlflow_reporter = MLFlowReporter(comm, cfg) if cfg.general.mlflow else None
     reporter = ReporterSet(
         LoggerReporter(comm, f'{cfg.env.name}-{cfg.general.name}'),
         StdoutReporter(comm),
@@ -108,7 +110,7 @@ def main(cfg):
     best_rew = -np.inf
     best_dist = -np.inf
 
-    archive, policies_novelties = init_archive(population, ns_fn)
+    archive, policies_novelties = init_archive(comm, cfg, population, ns_fn)
 
     for gen in range(cfg.general.gens):  # main loop
         # picking the policy from the population
@@ -139,7 +141,7 @@ def main(cfg):
         rew = tr.reward
 
         if cfg.nsr.adaptive:
-            obj_weight[idx], policies_best_rewards[idx], time_since_best[idx] = nsra(rew, obj_weight[idx],
+            obj_weight[idx], policies_best_rewards[idx], time_since_best[idx] = nsra(cfg, rew, obj_weight[idx],
                                                                                      policies_best_rewards[idx],
                                                                                      time_since_best[idx])
         elif cfg.nsr.progressive:
@@ -158,10 +160,9 @@ def main(cfg):
 
 
 if __name__ == '__main__':
-    comm: MPI.Comm = MPI.COMM_WORLD
     gym.logger.set_level(40)
 
-    cfg_file = utils.parse_args()
-    cfg = utils.load_config(cfg_file)
+    config_file = utils.parse_args()
+    config = utils.load_config(config_file)
 
-    main(cfg)
+    main(config)

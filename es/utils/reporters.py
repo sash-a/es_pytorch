@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import logging
 import time
 from abc import ABC, abstractmethod
@@ -10,6 +9,7 @@ from typing import Tuple, Dict
 import numpy as np
 from mlflow import log_params, log_metric, log_metrics, set_experiment, start_run
 from mpi4py import MPI
+from munch import unmunchify, Munch
 from pandas import json_normalize
 
 from es.evo.policy import Policy
@@ -213,12 +213,12 @@ class LoggerReporter(MpiReporter):
 
 
 class MLFlowReporter(MpiReporter):
-    def __init__(self, comm: MPI.Comm, cfg_file: str, cfg):
+    def __init__(self, comm: MPI.Comm, cfg: Munch):
         super().__init__(comm)
         if comm.rank == MpiReporter.MAIN:
             set_experiment(cfg.env.name)
             start_run(run_name=cfg.general.name)
-            log_params(json_normalize(json.load(open(cfg_file))).to_dict(orient='records')[0])
+            log_params(json_normalize(unmunchify(cfg)).to_dict(orient='records')[0])
 
             self.cum_steps = 0
             self.gens = [0] * cfg.general.n_policies
