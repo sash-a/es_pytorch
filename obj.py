@@ -13,7 +13,7 @@ from es.utils import utils, gym_runner
 from es.utils.obstat import ObStat
 from es.utils.rankers import CenteredRanker, EliteRanker
 from es.utils.reporters import LoggerReporter, ReporterSet, StdoutReporter, MLFlowReporter
-from es.utils.training_result import TrainingResult, RewardResult
+from es.utils.training_result import TrainingResult, MeanRewardResult
 from es.utils.utils import generate_seed
 
 
@@ -58,7 +58,7 @@ def main(cfg):
     def r_fn(model: torch.nn.Module) -> TrainingResult:
         save_obs = rs.random() < cfg.policy.save_obs_chance
         rews, behv, obs, steps = gym_runner.run_model(model, env, cfg.env.max_steps, rs, save_obs)
-        return RewardResult(rews, behv, obs, steps)
+        return MeanRewardResult(rews, behv, obs, steps)
 
     time_since_best = 0
     noise_std_inc = 0.08

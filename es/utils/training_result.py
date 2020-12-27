@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Sequence, List, Tuple
+from typing import List, Tuple
 
 import numpy as np
 
@@ -9,10 +9,9 @@ from es.utils.novelty import novelty
 class TrainingResult(ABC):
     """Stores the results of a single training run"""
 
-    def __init__(self, rewards: Sequence[float], positions: Sequence[float], obs: np.ndarray, steps: int,
-                 *args, **kwargs):
-        self.rewards: Sequence[float] = rewards
-        self.positions: Sequence[float] = positions
+    def __init__(self, rewards: List[float], positions: List[float], obs: np.ndarray, steps: int, *args, **kwargs):
+        self.rewards: List[float] = rewards
+        self.positions: List[float] = positions
         self.obs: np.ndarray = obs
         self.steps = steps
 
@@ -22,17 +21,22 @@ class TrainingResult(ABC):
         return self.obs.sum(axis=0), np.square(self.obs).sum(axis=0), cnt
 
     @abstractmethod
-    def get_result(self) -> Sequence[float]:
+    def get_result(self) -> List[float]:
         pass
 
-    result: Sequence[float] = property(lambda self: self.get_result())
+    result: List[float] = property(lambda self: self.get_result())
     reward = property(lambda self: sum(self.rewards))
     behaviour = property(lambda self: self.positions[-3:-1])
 
 
 class RewardResult(TrainingResult):
     def get_result(self) -> List[float]:
-        return [sum(self.rewards)]
+        return [self.reward]
+
+
+class MeanRewardResult(TrainingResult):
+    def get_result(self) -> List[float]:
+        return [self.reward / self.steps]
 
 
 class DistResult(TrainingResult):
@@ -46,8 +50,8 @@ class XDistResult(DistResult):
 
 
 class NSResult(TrainingResult):
-    def __init__(self, rewards: Sequence[float], positions: Sequence[float], obs: np.ndarray, steps: int,
-                 archive: np.ndarray, k: int):
+    def __init__(self, rewards: List[float], positions: List[float], obs: np.ndarray, steps: int, archive: np.ndarray,
+                 k: int):
         super().__init__(rewards, positions, obs, steps)
         self.archive = archive
         self.k = k
