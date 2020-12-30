@@ -39,13 +39,15 @@ def main(cfg):
     nn = FullyConnected(int(np.prod(env.observation_space.shape)),
                         int(np.prod(env.action_space.shape)),
                         256,
-                        2,
+                        10,
                         torch.nn.Tanh(),
                         env,
                         cfg.policy)
+    reporter.print('nn created')
     policy: Policy = Policy(nn, cfg.noise.std)
     optim: Optimizer = Adam(policy, cfg.policy.lr)
     nt: NoiseTable = NoiseTable.create_shared(comm, cfg.noise.tbl_size, len(policy), reporter, cfg.general.seed)
+    reporter.print('nt created')
 
     ranker = CenteredRanker()
     if 0 < cfg.experimental.elite < 1:
@@ -62,6 +64,7 @@ def main(cfg):
 
     time_since_best = 0
     noise_std_inc = 0.08
+    reporter.print('all initialization done')
     for gen in range(cfg.general.gens):
         if cfg.general.mlflow: mlflow_reporter.set_active_run(0)
         reporter.start_gen()

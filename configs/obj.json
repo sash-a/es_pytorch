@@ -4,7 +4,7 @@
     "max_steps": 2000
   },
   "noise": {
-    "tbl_size": 250000000,
+    "tbl_size": 1250000000,
     "std": 0.02,
     "std_limit": 0.002,
     "std_decay": 1
@@ -25,9 +25,9 @@
     "elite": 1
   },
   "general": {
-    "name": "obj",
+    "name": "obj_deep",
     "gens": 5000,
-    "policies_per_gen": 9600,
+    "policies_per_gen": 96000,
     "eps_per_policy": 1,
     "n_policies": 1,
     "batch_size": 500,
