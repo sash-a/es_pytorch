@@ -100,3 +100,4 @@ def approx_grad(ranker: Ranker, nt: NoiseTable, params: ndarray, optim: Optimize
     """Approximating gradient and update policy params"""
     grad = scale_noise(ranker.ranked_fits, ranker.noise_inds, nt, batch_size) / ranker.n_fits_ranked
     optim.step(l2coeff * params - grad)
+    del grad

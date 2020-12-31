@@ -21,6 +21,7 @@ class Optimizer(ABC):
         """
         self.t += 1
         self.policy.flat_params += self._compute_step(globalg)
+        del globalg
         return self.policy.flat_params
 
     @abstractmethod

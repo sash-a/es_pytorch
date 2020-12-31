@@ -4,7 +4,7 @@
     "max_steps": 2000
   },
   "noise": {
-    "tbl_size": 1250000000,
+    "tbl_size": 250000000,
     "std": 0.02,
     "std_limit": 0.002,
     "std_decay": 1
