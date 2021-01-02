@@ -39,14 +39,13 @@ def main(cfg):
     nn = FullyConnected(int(np.prod(env.observation_space.shape)),
                         int(np.prod(env.action_space.shape)),
                         256,
-                        5,
-                        torch.nn.Tanh(),
+                        2,
+                        torch.nn.ReLU(),
                         env,
                         cfg.policy)
     nn.eval()
     reporter.print(f'nn created')
     policy: Policy = Policy(nn, cfg.noise.std)
-    print(len(policy))
     optim: Optimizer = Adam(policy, cfg.policy.lr)
     nt: NoiseTable = NoiseTable.create_shared(comm, cfg.noise.tbl_size, len(policy), reporter, cfg.general.seed)
     reporter.print('nt created')

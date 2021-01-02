@@ -13,7 +13,7 @@ class FullyConnected(nn.Module):
         layers = [nn.Linear(in_size, hidden_size), activation]
         for _ in range(n_hidden):
             layers += [nn.Linear(hidden_size, hidden_size), activation]
-        layers += [nn.Linear(hidden_size, out_size), activation]
+        layers += [nn.Linear(hidden_size, out_size), nn.Tanh()]  # final layer needs to produce outputs in [-1, 1]
 
         self.model = nn.Sequential(*layers)
         self._action_std = policy_cfg.ac_std
