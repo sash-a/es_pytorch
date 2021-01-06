@@ -44,6 +44,9 @@ def step(cfg,
 
     gen_obstat = ObStat(env.observation_space.shape, 0)
     pos_res, neg_res, inds, steps = test_params(comm, eps_per_proc, policy, nt, gen_obstat, fit_fn, rs)
+
+    reporter.print(f'n dupes: {len(inds) - len(set(inds))}')
+
     ranker.rank(pos_res, neg_res, inds)
     approx_grad(ranker, nt, policy.flat_params, optim, cfg.general.batch_size, cfg.policy.l2coeff)
     noiseless_result = fit_fn(policy.pheno(np.zeros(len(policy))))

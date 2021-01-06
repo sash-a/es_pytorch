@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import time
 from abc import ABC, abstractmethod
 from datetime import datetime
@@ -80,7 +81,7 @@ class MpiReporter(Reporter, ABC):
         self.comm = comm
 
         self._start_time = 0
-        self.total_time = 0
+        self.gen_time = 0
 
         self.gen = 0
 
@@ -96,7 +97,7 @@ class MpiReporter(Reporter, ABC):
 
     def end_gen(self):
         if self.comm.rank == MpiReporter.MAIN:
-            self.total_time = time.time() - self._start_time
+            self.gen_time = time.time() - self._start_time
             self._end_gen()
 
     def print(self, s: str):
@@ -154,9 +155,10 @@ class StdoutReporter(MpiReporter):
 
         print(f'steps:{steps}')
         print(f'cum steps:{self.cum_steps}')
+        self.log({'n fits ranked': len(fits)})
 
     def _end_gen(self):
-        print(f'time:{self.total_time:0.2f}')
+        print(f'time:{self.gen_time:0.2f}')
 
     def _print(self, s: str):
         print(s)
@@ -170,17 +172,21 @@ class LoggerReporter(MpiReporter):
     def __init__(self, comm: MPI.Comm, log_name=None):
         super().__init__(comm)
 
-        if log_name is None:
-            log_name = datetime.now().strftime('es__%d_%m_%y__%H_%M_%S')
-        logging.basicConfig(filename=f'logs/{log_name}.log', level=logging.DEBUG)
-        logging.info('initialized logger')
-
         if comm.rank == 0:
             self.gen = 0
 
             self.best_rew = 0
             self.best_dist = 0
             self.cum_steps = 0
+
+            self.folder = f'saved/{log_name}/fits/'
+            if not os.path.exists(self.folder):
+                os.makedirs(self.folder)
+
+            if log_name is None:
+                log_name = datetime.now().strftime('es__%d_%m_%y__%H_%M_%S')
+            logging.basicConfig(filename=f'logs/{log_name}.log', level=logging.DEBUG)
+            logging.info('initialized logger')
 
     def _start_gen(self):
         logging.info(f'gen:{self.gen}')
@@ -201,8 +207,11 @@ class LoggerReporter(MpiReporter):
         logging.info(f'steps:{steps}')
         logging.info(f'cum steps:{self.cum_steps}')
 
+        self.log({'n fits ranked': len(fits)})
+        np.save(f'{self.folder}/{self.gen}', fits)
+
     def _end_gen(self):
-        logging.info(f'time:{self.total_time:0.2f}')
+        logging.info(f'time:{self.gen_time:0.2f}')
 
     def _print(self, s: str):
         logging.info(s)
@@ -256,12 +265,12 @@ class MLFlowReporter(MpiReporter):
             log_metric('rew', rew, self.gens[self.active_run])
             log_metric(f'steps', steps, self.gens[self.active_run])
             log_metric(f'cum steps', self.cum_steps, self.gens[self.active_run])
-            log_metric('time', self.total_time, self.gens[self.active_run])
+            log_metric('time', self.gen_time, self.gens[self.active_run])
+            self.log({'n fits ranked': len(fits)})
 
     def _end_gen(self):
         self.gens[self.active_run] += 1
         self.active_run = None
-        logging.info(f'time:{self.total_time:0.2f}')
 
     def _print(self, s: str):
         pass

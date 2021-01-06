@@ -20,9 +20,10 @@ from es.utils.utils import generate_seed
 def main(cfg):
     comm: MPI.Comm = MPI.COMM_WORLD
 
+    full_name = f'{cfg.env.name}-{cfg.general.name}'
     mlflow_reporter = MLFlowReporter(comm, cfg) if cfg.general.mlflow else None
     reporter = ReporterSet(
-        LoggerReporter(comm, f'{cfg.env.name}-{cfg.general.name}'),
+        LoggerReporter(comm, full_name),
         StdoutReporter(comm),
         mlflow_reporter
     )
@@ -104,7 +105,7 @@ def main(cfg):
 
         # Saving policy if it obtained a better reward or distance
         if save_policy and comm.rank == 0:
-            policy.save(f'saved/{cfg.general.name}', str(gen))
+            policy.save(f'saved/{full_name}', str(gen))
             reporter.print(f'saving policy with rew:{rew:0.2f} and dist:{dist:0.2f}')
 
         reporter.end_gen()

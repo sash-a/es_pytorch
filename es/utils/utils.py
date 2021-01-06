@@ -12,9 +12,7 @@ from es.evo.noisetable import NoiseTable
 
 
 def batch_noise(inds: np.ndarray, nt: NoiseTable, batch_size: int):
-    """
-    Need to batch noise otherwise will have to `dot` a large array
-    """
+    """Need to batch noise otherwise will have to `dot` a large array"""
     assert inds.ndim == 1
 
     batch = []
