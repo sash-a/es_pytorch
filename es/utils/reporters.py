@@ -173,17 +173,16 @@ class LoggerReporter(MpiReporter):
     def __init__(self, comm: MPI.Comm, log_folder=None):
         super().__init__(comm)
 
-        self.fit_folder = path.join('saved', log_folder, 'fits')
+        if comm.rank == MpiReporter.MAIN:
+            self.fit_folder = path.join('saved', log_folder, 'fits')
+            if not path.exists(self.fit_folder):
+                os.makedirs(self.fit_folder)
 
-        if not path.exists(self.fit_folder):
-            os.makedirs(self.fit_folder)
+            if log_folder is None:
+                log_folder = datetime.now().strftime('es__%d_%m_%y__%H_%M_%S')
+            logging.basicConfig(filename=path.join('saved', log_folder, 'es.log'), level=logging.DEBUG)
+            logging.info('initialized logger')
 
-        if log_folder is None:
-            log_folder = datetime.now().strftime('es__%d_%m_%y__%H_%M_%S')
-        logging.basicConfig(filename=path.join('saved', log_folder, 'es.log'), level=logging.DEBUG)
-        logging.info('initialized logger')
-
-        if comm.rank == 0:
             self.gen = 0
 
             self.best_rew = 0
