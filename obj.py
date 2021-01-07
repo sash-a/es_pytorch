@@ -1,3 +1,5 @@
+from os import path
+
 import gym
 import mlflow
 import numpy as np
@@ -13,7 +15,7 @@ from es.utils import utils, gym_runner
 from es.utils.obstat import ObStat
 from es.utils.rankers import CenteredRanker, EliteRanker
 from es.utils.reporters import LoggerReporter, ReporterSet, StdoutReporter, MLFlowReporter
-from es.utils.training_result import TrainingResult, MeanRewardResult
+from es.utils.training_result import TrainingResult, RewardResult
 from es.utils.utils import generate_seed
 
 
@@ -59,7 +61,7 @@ def main(cfg):
     def r_fn(model: torch.nn.Module) -> TrainingResult:
         save_obs = rs.random() < cfg.policy.save_obs_chance
         rews, behv, obs, steps = gym_runner.run_model(model, env, cfg.env.max_steps, rs, save_obs)
-        return MeanRewardResult(rews, behv, obs, steps)
+        return RewardResult(rews, behv, obs, steps)
 
     time_since_best = 0
     noise_std_inc = 0.08
@@ -105,7 +107,7 @@ def main(cfg):
 
         # Saving policy if it obtained a better reward or distance
         if save_policy and comm.rank == 0:
-            policy.save(f'saved/{full_name}', str(gen))
+            policy.save(path.join('saved', full_name, 'weights'), str(gen))
             reporter.print(f'saving policy with rew:{rew:0.2f} and dist:{dist:0.2f}')
 
         reporter.end_gen()

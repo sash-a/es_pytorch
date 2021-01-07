@@ -1,4 +1,5 @@
 import random
+from os import path
 from typing import List, Callable, Optional, Tuple
 
 import gym
@@ -70,9 +71,11 @@ def main(cfg: Munch):
     cfg.general.seed = (generate_seed(comm) if cfg.general.seed is None else cfg.general.seed)
     rs = utils.seed(comm, cfg.general.seed, env)
 
+    full_name = f'{cfg.env.name}-{cfg.general.name}'
+
     mlflow_reporter = MLFlowReporter(comm, cfg) if cfg.general.mlflow else None
     reporter = ReporterSet(
-        LoggerReporter(comm, f'{cfg.env.name}-{cfg.general.name}'),
+        LoggerReporter(comm, full_name),
         StdoutReporter(comm),
         mlflow_reporter
     )
@@ -151,7 +154,7 @@ def main(cfg: Munch):
         if (rew > best_rew or dist > best_dist) and comm.rank == 0:
             best_rew = max(rew, best_rew)
             best_dist = max(dist, best_dist)
-            population[idx].save(f'saved/{cfg.general.name}', str(gen))
+            population[idx].save(path.join('saved', full_name, 'weights'), str(gen))
             reporter.print(f'saving policy with rew:{rew:0.2f} and dist:{dist:0.2f}')
 
         reporter.end_gen()

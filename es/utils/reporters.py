@@ -5,6 +5,7 @@ import os
 import time
 from abc import ABC, abstractmethod
 from datetime import datetime
+from os import path
 from typing import Tuple, Dict
 
 import numpy as np
@@ -169,8 +170,18 @@ class StdoutReporter(MpiReporter):
 
 
 class LoggerReporter(MpiReporter):
-    def __init__(self, comm: MPI.Comm, log_name=None):
+    def __init__(self, comm: MPI.Comm, log_folder=None):
         super().__init__(comm)
+
+        self.fit_folder = path.join('saved', log_folder, 'fits')
+
+        if not path.exists(self.fit_folder):
+            os.makedirs(self.fit_folder)
+
+        if log_folder is None:
+            log_folder = datetime.now().strftime('es__%d_%m_%y__%H_%M_%S')
+        logging.basicConfig(filename=path.join('saved', log_folder, 'es.log'), level=logging.DEBUG)
+        logging.info('initialized logger')
 
         if comm.rank == 0:
             self.gen = 0
@@ -178,15 +189,6 @@ class LoggerReporter(MpiReporter):
             self.best_rew = 0
             self.best_dist = 0
             self.cum_steps = 0
-
-            self.folder = f'saved/{log_name}/fits/'
-            if not os.path.exists(self.folder):
-                os.makedirs(self.folder)
-
-            if log_name is None:
-                log_name = datetime.now().strftime('es__%d_%m_%y__%H_%M_%S')
-            logging.basicConfig(filename=f'logs/{log_name}.log', level=logging.DEBUG)
-            logging.info('initialized logger')
 
     def _start_gen(self):
         logging.info(f'gen:{self.gen}')
@@ -208,7 +210,7 @@ class LoggerReporter(MpiReporter):
         logging.info(f'cum steps:{self.cum_steps}')
 
         self.log({'n fits ranked': len(fits)})
-        np.save(f'{self.folder}/{self.gen}', fits)
+        np.save(f'{self.fit_folder}/{self.gen}', fits)
 
     def _end_gen(self):
         logging.info(f'time:{self.gen_time:0.2f}')
