@@ -29,8 +29,8 @@ if __name__ == '__main__':
     mlflow_reporter = MLFlowReporter(comm, cfg_file, cfg)
     reporter = ReporterSet(
         LoggerReporter(comm, cfg, cfg.general.name),
-        StdoutReporter(comm),
-        mlflow_reporter
+        StdoutReporter(comm)
+        # mlflow_reporter
     )
 
     from gym_unity.envs import UnityToGymWrapper
@@ -38,7 +38,7 @@ if __name__ == '__main__':
     from mlagents_envs.side_channel.engine_configuration_channel import EngineConfigurationChannel
 
     channel = EngineConfigurationChannel()
-    unity_env = UnityEnvironment(cfg.env.name, comm.rank, no_graphics=True, side_channels=[channel])
+    unity_env:UnityEnvironment = UnityEnvironment(cfg.env.name, comm.rank, no_graphics=True, side_channels=[channel])
     channel.set_configuration_parameters(time_scale=50.0)
     env = UnityToGymWrapper(unity_env)
 

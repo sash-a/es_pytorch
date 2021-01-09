@@ -1,6 +1,6 @@
 {
   "env": {
-    "name": "ml-agents/envs/Walker/Headless/WalkerHeadless.x86_64",
+    "name": "ml-agents/envs/Soccer/Headless/SoccerHeadless.x86_64",
     "max_steps": 500
   },
   "noise": {
@@ -25,7 +25,7 @@
     "elite": 0.2
   },
   "general": {
-    "name": "worm_unity",
+    "name": "soccer",
     "gens": 2000,
     "policies_per_gen": 4800,
     "eps_per_policy": 1,
