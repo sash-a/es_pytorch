@@ -1,3 +1,6 @@
+import os
+
+import numpy as np
 from matplotlib import pyplot as plt
 
 
@@ -22,7 +25,7 @@ def get_value(line: str):
     return float(line.split(':')[3][:-1])
 
 
-def graph(file: str):
+def graph_log(file: str):
     results = []
     result = Result()
 
@@ -64,7 +67,17 @@ def graph(file: str):
     plt.show()
 
 
-if __name__ == '__main__':
-    graph('../../logs/other.log')
-    # graph('../../logs/hopper_mujoco.log')
+def graph_fits(folder: str):
+    y = []
+    x = []
+    for i, file in enumerate(os.listdir(folder)):
+        loaded = np.load(f'{folder}/{file}')
+        y += list(loaded)
+        x += [i] * len(loaded)
 
+    plt.scatter(x, y)
+    plt.show()
+
+
+if __name__ == '__main__':
+    graph_fits('../../saved/HopperBulletEnv-v0-obj_lr005/fits/fits')

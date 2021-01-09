@@ -68,7 +68,11 @@ class DoublePositiveCenteredRanker(CenteredRanker):
 
 class MaxNormalizedRanker(Ranker):
     def _rank(self, x: np.ndarray) -> np.ndarray:
-        return 2 * x / np.max(x) - 1  # TODO possibly clamp the min to around -0.25
+        mn = np.min(x)
+        y = x + (-mn if mn > 0 else mn)  # brings minimum value to 0 -> [0, max(x)]
+        y /= np.max(y)  # normalizes fits -> [0, 1]
+        y = 2 * y - 1  # stretch fits out -> [-1, 1]
+        return np.squeeze(y)
 
 
 class SemiCenteredRanker(Ranker):

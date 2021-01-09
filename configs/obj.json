@@ -25,9 +25,9 @@
     "elite": 1
   },
   "general": {
-    "name": "obj",
+    "name": "obj_maxnorm",
     "gens": 5000,
-    "policies_per_gen": 9600,
+    "policies_per_gen": 96000,
     "eps_per_policy": 1,
     "n_policies": 1,
     "batch_size": 500,
