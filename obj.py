@@ -13,7 +13,7 @@ from es.nn.nn import FullyConnected
 from es.nn.optimizers import Adam, Optimizer
 from es.utils import utils, gym_runner
 from es.utils.obstat import ObStat
-from es.utils.rankers import CenteredRanker, EliteRanker, MaxNormalizedRanker
+from es.utils.rankers import CenteredRanker, EliteRanker
 from es.utils.reporters import LoggerReporter, ReporterSet, StdoutReporter, MLFlowReporter
 from es.utils.training_result import TrainingResult, RewardResult
 from es.utils.utils import generate_seed
@@ -50,7 +50,7 @@ def main(cfg):
     optim: Optimizer = Adam(policy, cfg.policy.lr)
     nt: NoiseTable = NoiseTable.create_shared(comm, cfg.noise.tbl_size, len(policy), reporter, cfg.general.seed)
 
-    ranker = MaxNormalizedRanker()
+    ranker = CenteredRanker()
     if 0 < cfg.experimental.elite < 1:
         ranker = EliteRanker(CenteredRanker(), cfg.experimental.elite)
 
@@ -73,11 +73,14 @@ def main(cfg):
             reporter.log({'noise std': cfg.noise.std})
         if cfg.policy.lr_decay != 1:
             reporter.log({'lr': cfg.policy.lr})
+        if cfg.policy.ac_std_decay != 1:
+            reporter.log({'ac std': cfg.policy.ac_std})
 
         nn.set_ob_mean_std(obstat.mean, obstat.std)
         tr, gen_obstat = es.step(cfg, comm, policy, optim, nt, env, r_fn, rs, ranker, reporter)
         obstat += gen_obstat  # adding the new observations to the global obstat
 
+        cfg.policy.ac_std = nn._action_std = cfg.policy.ac_std * cfg.policy.ac_std_decay
         cfg.noise.std = policy.std = max(cfg.noise.std * cfg.noise.std_decay, cfg.noise.std_limit)
         cfg.policy.lr = optim.lr = max(cfg.policy.lr * cfg.policy.lr_decay, cfg.policy.lr_limit)
 

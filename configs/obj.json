@@ -10,7 +10,8 @@
     "std_decay": 1
   },
   "policy": {
-    "ac_std": 0.01,
+    "ac_std": 0.05,
+    "ac_std_decay": 0.99,
     "l2coeff": 0.005,
     "lr": 0.01,
     "lr_limit": 0.001,
@@ -25,7 +26,7 @@
     "elite": 1
   },
   "general": {
-    "name": "obj_maxnorm",
+    "name": "obj_acstd",
     "gens": 5000,
     "policies_per_gen": 96000,
     "eps_per_policy": 1,
