@@ -1,6 +1,6 @@
 {
   "env": {
-    "name": "HopperBulletEnv-v0",
+    "name": "ml-agents-release_12/envs/soccer_ones/headfull/soccer_ones.x86_64",
     "max_steps": 2000
   },
   "noise": {

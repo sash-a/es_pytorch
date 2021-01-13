@@ -22,14 +22,21 @@ class FullyConnected(nn.Module):
         self._obstd: np.ndarray = np.ones(env.observation_space.shape)
 
     def forward(self, inp: Tensor, **kwargs):
-        rs = kwargs['rs']
+        rs = kwargs['rs'] if 'rs' in kwargs else None
+        to_int = kwargs['to_int'] if 'to_int' in kwargs else None
 
         inp = clamp((inp - self._obmean) / self._obstd, min=-ob_clip, max=ob_clip)
-        a = self.model(inp.float())
-        if self._action_std != 0 and rs is not None:
+        a: Tensor = self.model(inp.float())
+        if self._action_std != 0 and rs and not to_int:
             a += rs.randn(*a.shape) * self._action_std
 
-        return a.numpy()
+        if to_int and not rs:  # round to -1 if < -0.5 to to 1 if > 0.5 and 0 otherwise
+            a[a > 0.5] = 1
+            a[a < -0.5] = -1
+            btw_idx = np.where((a > -0.5) & (a < 0.5))
+            a[btw_idx] = 0
+
+        return a.numpy().astype(int)
 
     def set_ob_mean_std(self, mean: np.ndarray, std: np.ndarray):
         self._obmean = mean

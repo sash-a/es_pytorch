@@ -4,6 +4,8 @@ import gym
 import numpy as np
 import torch
 
+from es.utils.unity import UnityGymWrapper
+
 BULLET_ENV_SUFFIX = 'BulletEnv'
 
 
@@ -25,6 +27,7 @@ def run_model(model: torch.nn.Module,
         ob = env.reset()
         for step in range(max_steps):
             ob = torch.from_numpy(ob).float()
+
             action = model(ob, rs=rs)
             ob, rew, done, _ = env.step(action)
             if save_obs:
@@ -44,6 +47,50 @@ def run_model(model: torch.nn.Module,
 
     behv += behv[-3:] * (max_steps - int(len(behv) / 3))  # extending the behaviour vector to have `max_steps` elements
     return rews, behv, np.array(obs), step
+
+
+def multi_agent_gym_runner(policies: List[torch.nn.Module],
+                           env: UnityGymWrapper,
+                           max_steps: int,
+                           rs: np.random.RandomState = None,
+                           save_obs: bool = False,
+                           render: bool = False):
+    rews = []
+    saved_obs = []
+    behv = []
+
+    with torch.no_grad():
+        obs = env.reset()
+        for step in range(max_steps):
+            # ob = torch.from_numpy(ob).float()
+
+            actions = [(policy(torch.from_numpy(ob).float(), to_int=True)) for policy, ob in zip(policies, obs)]
+            # actions: List[np.ndarray] = []
+            # for team in policies:
+            #     team_actions = []
+            #     for policy in team:
+            #         team_actions.append(policy(ob, rs=rs))
+            #
+            #     actions.append(np.array(team_actions))
+
+            obs, rew, done, _ = env.step(actions)
+            if save_obs:
+                saved_obs += [obs]
+
+            rews += [rew]
+            behv.extend([0, 0, 0])  # todo
+
+            if render:
+                env.render()
+
+            if done:
+                break
+
+    if not save_obs:
+        saved_obs += [np.zeros(obs.shape)]
+
+    behv += behv[-3:] * (max_steps - int(len(behv) / 3))  # extending the behaviour vector to have `max_steps` elements
+    return rews, behv, np.array(saved_obs), step
 
 
 def _get_pos(env):

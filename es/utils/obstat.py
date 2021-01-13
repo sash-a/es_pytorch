@@ -17,6 +17,7 @@ class ObStat:
         self.count: float = eps
 
     def inc(self, s: np.ndarray, ssq: np.ndarray, c: float):
+        print(f'sum: {self.sum.shape} s: {s.shape}')
         self.sum += s.astype(np.float64)
         self.sumsq += ssq.astype(np.float64)
         self.count += c
