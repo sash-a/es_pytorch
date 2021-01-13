@@ -58,9 +58,9 @@ def main(cfg):
     best_dist = -np.inf
     best_max_rew = -np.inf  # highest achieved in any gen
 
-    def r_fn(model: torch.nn.Module) -> TrainingResult:
+    def r_fn(model: torch.nn.Module, use_ac_noise=True) -> TrainingResult:
         save_obs = rs.random() < cfg.policy.save_obs_chance
-        rews, behv, obs, steps = gym_runner.run_model(model, env, cfg.env.max_steps, rs, save_obs)
+        rews, behv, obs, steps = gym_runner.run_model(model, env, cfg.env.max_steps, rs if use_ac_noise else None, save_obs)
         return RewardResult(rews, behv, obs, steps)
 
     time_since_best = 0

@@ -49,7 +49,7 @@ def step(cfg,
 
     ranker.rank(pos_res, neg_res, inds)
     approx_grad(ranker, nt, policy.flat_params, optim, cfg.general.batch_size, cfg.policy.l2coeff)
-    noiseless_result = fit_fn(policy.pheno(np.zeros(len(policy))))
+    noiseless_result = fit_fn(policy.pheno(np.zeros(len(policy))), False)
     reporter.log_gen(ranker.fits, noiseless_result, policy, steps)
 
     return noiseless_result, gen_obstat
