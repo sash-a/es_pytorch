@@ -184,9 +184,6 @@ class LoggerReporter(MpiReporter):
             logging.info('initialized logger')
 
             self.gen = 0
-
-            self.best_rew = 0
-            self.best_dist = 0
             self.cum_steps = 0
 
     def _start_gen(self):

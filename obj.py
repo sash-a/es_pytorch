@@ -60,7 +60,8 @@ def main(cfg):
 
     def r_fn(model: torch.nn.Module, use_ac_noise=True) -> TrainingResult:
         save_obs = rs.random() < cfg.policy.save_obs_chance
-        rews, behv, obs, steps = gym_runner.run_model(model, env, cfg.env.max_steps, rs if use_ac_noise else None, save_obs)
+        rews, behv, obs, steps = gym_runner.run_model(model, env, cfg.env.max_steps, rs if use_ac_noise else None,
+                                                      save_obs)
         return RewardResult(rews, behv, obs, steps)
 
     time_since_best = 0
@@ -88,7 +89,8 @@ def main(cfg):
 
         dist = np.linalg.norm(np.array(tr.positions[-3:-1]))
         rew = np.sum(tr.rewards)
-        max_rew = np.max(ranker.fits[:, 0])
+        max_rew_ind = np.argmax(ranker.fits[:, 0])
+        max_rew = ranker.fits[:, 0][max_rew_ind]
 
         time_since_best = 0 if max_rew > best_max_rew else time_since_best + 1
         reporter.log({'time since best': time_since_best})
@@ -106,12 +108,19 @@ def main(cfg):
         save_policy = (rew > best_rew or dist > best_dist)
         best_rew = max(rew, best_rew)
         best_dist = max(dist, best_dist)
-        best_max_rew = max(best_max_rew, max_rew)
 
         # Saving policy if it obtained a better reward or distance
         if save_policy and comm.rank == 0:
             policy.save(path.join('saved', full_name, 'weights'), str(gen))
             reporter.print(f'saving policy with rew:{rew:0.2f} and dist:{dist:0.2f}')
+
+        # Saving max rew if it obtained best ever rew
+        if max_rew > best_max_rew:
+            best_max_rew = max_rew
+            coeff = 1 if max_rew_ind < ranker.n_fits_ranked // 2 else -1  # checking if pos or neg noise ind used
+            torch.save(policy.pheno(coeff * ranker.noise_inds[max_rew_ind % (ranker.n_fits_ranked // 2)]),
+                       path.join('saved', full_name, 'weights', f'gen{gen}-rew{best_max_rew:0.0f}.pt'))
+            reporter.print(f'saving max policy with rew:{best_max_rew:0.2f}')
 
         reporter.end_gen()
     mlflow.end_run()  # in the case where mlflow is the reporter, just ending its run
