@@ -115,7 +115,7 @@ def main(cfg):
             reporter.print(f'saving policy with rew:{rew:0.2f} and dist:{dist:0.2f}')
 
         # Saving max rew if it obtained best ever rew
-        if max_rew > best_max_rew:
+        if max_rew > best_max_rew and comm.rank == 0:
             best_max_rew = max_rew
             coeff = 1 if max_rew_ind < ranker.n_fits_ranked // 2 else -1  # checking if pos or neg noise ind used
             torch.save(policy.pheno(coeff * ranker.noise_inds[max_rew_ind % (ranker.n_fits_ranked // 2)]),
