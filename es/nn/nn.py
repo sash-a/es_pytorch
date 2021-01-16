@@ -21,7 +21,7 @@ class FullyConnected(nn.Module):
         self._obmean: np.ndarray = np.zeros(env.observation_space.shape)
         self._obstd: np.ndarray = np.ones(env.observation_space.shape)
 
-    def forward(self, inp: Tensor, **kwargs):
+    def forward(self, inp: Tensor, **kwargs) -> np.ndarray:
         rs = kwargs['rs']
 
         inp = clamp((inp - self._obmean) / self._obstd, min=-ob_clip, max=ob_clip)
@@ -34,3 +34,25 @@ class FullyConnected(nn.Module):
     def set_ob_mean_std(self, mean: np.ndarray, std: np.ndarray):
         self._obmean = mean
         self._obstd = std
+
+
+class FCIntegGausAction(FullyConnected):
+    """
+    Fully connected nn with integrated gaussian actions. Assumes that the first output of the network is the std for
+    all the outputs. Below is how the nn operates:
+
+    action = model(input[1:]
+    action += rs.standard_normal(*action.shape) * input[0]
+    """
+
+    def forward(self, inp: Tensor, **kwargs) -> np.ndarray:
+        rs: np.random.RandomState = kwargs['rs']
+
+        inp = clamp((inp[1:] - self._obmean) / self._obstd, min=-ob_clip, max=ob_clip)
+        a = self.model(inp.float())
+
+        action_std = inp[0]  # this class assumes that the first nn output is the std for all gaussian actions
+        if action_std != 0 and rs is not None:
+            a += rs.standard_normal(*a.shape) * action_std
+
+        return a.numpy()

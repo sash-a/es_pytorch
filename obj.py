@@ -9,7 +9,7 @@ from mpi4py import MPI
 import es.evo.es as es
 from es.evo.noisetable import NoiseTable
 from es.evo.policy import Policy
-from es.nn.nn import FullyConnected
+from es.nn.nn import FCIntegGausAction
 from es.nn.optimizers import Adam, Optimizer
 from es.utils import utils, gym_runner
 from es.utils.obstat import ObStat
@@ -39,13 +39,13 @@ def main(cfg):
 
     # initializing policy, optimizer, noise and env
     obstat: ObStat = ObStat(env.observation_space.shape, 1e-2)  # eps to prevent dividing by zero at the beginning
-    nn = FullyConnected(int(np.prod(env.observation_space.shape)),
-                        int(np.prod(env.action_space.shape)),
-                        256,
-                        2,
-                        torch.nn.Tanh(),
-                        env,
-                        cfg.policy)
+    nn = FCIntegGausAction(int(np.prod(env.observation_space.shape)),
+                           int(np.prod(env.action_space.shape) + 1),
+                           256,
+                           2,
+                           torch.nn.Tanh(),
+                           env,
+                           cfg.policy)
     policy: Policy = Policy(nn, cfg.noise.std)
     optim: Optimizer = Adam(policy, cfg.policy.lr)
     nt: NoiseTable = NoiseTable.create_shared(comm, cfg.noise.tbl_size, len(policy), reporter, cfg.general.seed)
