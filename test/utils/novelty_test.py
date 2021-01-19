@@ -1,7 +1,7 @@
 # Very informal test to make sure that parallelism is working
 import numpy as np
 
-from es.utils.novelty import update_archive, novelty
+from src.utils.novelty import update_archive, novelty
 # noinspection PyUnresolvedReferences
 from test import comm
 

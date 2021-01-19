@@ -14,8 +14,8 @@ from mpi4py import MPI
 from munch import unmunchify, Munch
 from pandas import json_normalize
 
-from es.evo.policy import Policy
-from es.utils.training_result import TrainingResult
+from src.core.policy import Policy
+from src.gym.training_result import TrainingResult
 
 
 def calc_dist_rew(tr: TrainingResult) -> Tuple[float, float]:

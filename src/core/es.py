@@ -12,14 +12,14 @@ from numpy import ndarray
 from numpy.random import RandomState
 from torch.nn import Module
 
-from es.evo.noisetable import NoiseTable
-from es.evo.policy import Policy
-from es.nn.optimizers import Optimizer
-from es.utils.obstat import ObStat
-from es.utils.rankers import Ranker, CenteredRanker
-from es.utils.reporters import StdoutReporter, Reporter
-from es.utils.training_result import TrainingResult
-from es.utils.utils import scale_noise
+from src.core.noisetable import NoiseTable
+from src.core.policy import Policy
+from src.gym.training_result import TrainingResult
+from src.nn.obstat import ObStat
+from src.nn.optimizers import Optimizer
+from src.utils.rankers import Ranker, CenteredRanker
+from src.utils.reporters import StdoutReporter, Reporter
+from src.utils.utils import scale_noise
 
 
 # noinspection PyIncorrectDocstring

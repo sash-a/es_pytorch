@@ -8,7 +8,7 @@ import torch
 from mpi4py import MPI
 from munch import Munch, munchify
 
-from es.evo.noisetable import NoiseTable
+from src.core.noisetable import NoiseTable
 
 
 def batch_noise(inds: np.ndarray, nt: NoiseTable, batch_size: int):

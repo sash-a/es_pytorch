@@ -3,7 +3,7 @@ from typing import List, Tuple, Type
 
 import numpy as np
 
-from es.utils.novelty import novelty
+from src.utils.novelty import novelty
 
 
 class TrainingResult(ABC):

@@ -1,6 +1,6 @@
 import numpy as np
 
-from es.utils.obstat import ObStat
+from src.nn.obstat import ObStat
 # noinspection PyUnresolvedReferences
 from test import comm
 

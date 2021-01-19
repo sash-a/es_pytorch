@@ -1,7 +1,7 @@
 import numpy as np
 
-from es.evo.noisetable import NoiseTable
-from es.utils.utils import batch_noise, scale_noise
+from src.core.noisetable import NoiseTable
+from src.utils.utils import batch_noise, scale_noise
 
 
 def test_batch_noise():

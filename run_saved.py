@@ -3,8 +3,8 @@ import argparse
 import gym
 import numpy as np
 
-from es.evo.policy import Policy
-from es.utils.gym_runner import run_model, BULLET_ENV_SUFFIX
+from src.core.policy import Policy
+from src.gym.gym_runner import run_model, BULLET_ENV_SUFFIX
 
 
 def run_saved(policy_path: str, env: gym.Env, steps: int):
