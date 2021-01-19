@@ -5,7 +5,7 @@ from typing import Tuple, Optional
 import numpy as np
 from mpi4py import MPI
 
-from es.utils.reporters import Reporter
+from src.utils.reporters import Reporter
 
 
 def create_shared_arr(comm: MPI.Comm, size: int) -> np.ndarray:

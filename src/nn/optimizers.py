@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 
 import numpy as np
 
-from es.evo.policy import Policy
+from src.core.policy import Policy
 
 
 class Optimizer(ABC):

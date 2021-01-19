@@ -39,20 +39,44 @@ class FullyConnected(nn.Module):
 class FCIntegGausAction(FullyConnected):
     """
     Fully connected nn with integrated gaussian actions. Assumes that the first output of the network is the std for
-    all the outputs. Below is how the nn operates:
+    all the outputs. Assumes that the output is a 1D vector. Below is how the nn operates:
 
-    action = model(input[1:]
-    action += rs.standard_normal(*action.shape) * input[0]
+    out = model(input)
+    act, std = out[1:], out[0]
+    act += rs.standard_normal(*act.shape) * std
     """
 
     def forward(self, inp: Tensor, **kwargs) -> np.ndarray:
-        rs: np.random.RandomState = kwargs['rs']
+        rs: np.random.RandomState = kwargs['rs'] if 'rs' in kwargs else None
 
-        inp = clamp((inp[1:] - self._obmean) / self._obstd, min=-ob_clip, max=ob_clip)
-        a = self.model(inp.float())
+        inp = clamp((inp - self._obmean) / self._obstd, min=-ob_clip, max=ob_clip)
+        out = self.model(inp.float()).numpy()
 
-        action_std = inp[0]  # this class assumes that the first nn output is the std for all gaussian actions
+        # this class assumes that the first nn output is the std for all gaussian actions
+        action, action_std = out[1:], out[0]
         if action_std != 0 and rs is not None:
-            a += rs.standard_normal(*a.shape) * action_std
+            action += rs.standard_normal(*action.shape) * action_std
 
-        return a.numpy()
+        return action
+
+
+class FCIntegGausActionMulti(FullyConnected):
+    """
+    Fully connected nn with integrated gaussian actions. Assumes that the first half of the output is the mean and the
+    second half the std of the gauss actions
+    """
+
+    def forward(self, inp: Tensor, **kwargs) -> np.ndarray:
+        rs: np.random.RandomState = kwargs['rs'] if 'rs' in kwargs else None
+
+        inp = clamp((inp - self._obmean) / self._obstd, min=-ob_clip, max=ob_clip)
+        out = self.model(inp.float()).numpy()
+
+        # this class assumes that the first half of the nn output is the action and second half is the std
+        mid = len(out) // 2
+        action, action_std = out[:mid], np.abs(out[mid:])
+
+        if rs is not None:
+            action += rs.standard_normal(*action.shape) * action_std
+
+        return action
