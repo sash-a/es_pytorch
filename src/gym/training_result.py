@@ -36,22 +36,23 @@ class MultiAgentTrainingResult(TrainingResult):
     @property
     def ob_sum_sq_cnt(self) -> List[Tuple[np.ndarray, np.ndarray, int]]:
         obs_sums_sqs_cnts = []
-        print(f'whole obs shape: {self.obs.shape}')
         for i in range(self.obs.shape[1]):
             curr_obs = self.obs[:, i]
-            print(f'curr obs shape: {curr_obs.shape}')
+            # print(f'curr obs shape: {curr_obs.shape}')
             cnt = len(curr_obs) if np.any(curr_obs) else 0
 
-            print(f'summed obs shape: {curr_obs.sum(axis=0).shape}')
-            print(f'sq obs shape: {np.square(curr_obs).sum(axis=0).shape}')
+            # print(f'summed obs shape: {curr_obs.sum(axis=0).shape}')
+            # print(f'sq obs shape: {np.square(curr_obs).sum(axis=0).shape}')
             obs_sums_sqs_cnts.append((curr_obs.sum(axis=0), np.square(curr_obs).sum(axis=0), cnt))
 
         return obs_sums_sqs_cnts
 
     def trainingresults(self, tr_type: Type[TrainingResult]) -> List[TrainingResult]:
         """:returns each a list of each agents training result"""
+        rews, obs = np.array(self.rewards), np.array(self.obs)
+
         return [
-            tr_type(self.rewards[:, i], self.positions, self.obs[:, i], self.steps[:, i])  # todo positions
+            tr_type(rews[:, i], self.positions, obs[:, i], self.steps)  # todo positions
             for i in range(np.array(self.rewards).shape[1])
         ]
 

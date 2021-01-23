@@ -2,10 +2,13 @@ from typing import Tuple, List, Optional
 
 import gym
 import numpy as np
+import torch
 from gym import spaces
 from mlagents_envs.base_env import ActionTuple
 from mlagents_envs.environment import UnityEnvironment
 from mlagents_envs.side_channel.engine_configuration_channel import EngineConfigurationChannel
+
+from src.core.policy import Policy
 
 
 class UnityGymWrapper(gym.Env):
@@ -71,7 +74,10 @@ class UnityGymWrapper(gym.Env):
     def step(self, actions: List[np.ndarray]) -> GymResult:
         curr_action_idx = 0
         for team in self.team_names:
+            # print(f'start idx={curr_action_idx}. End idx = {curr_action_idx + self.agent_per_team[team]}')
+            # print(f'len action list:{len(actions[curr_action_idx:curr_action_idx + self.agent_per_team[team]])}')
             action = np.vstack(actions[curr_action_idx:curr_action_idx + self.agent_per_team[team]])
+            # print(f'actions shape:{action.shape}')
             self._e.set_actions(team, ActionTuple(np.zeros((1, 0)), action))
             curr_action_idx += self.agent_per_team[team]
 
@@ -97,10 +103,15 @@ class UnityGymWrapper(gym.Env):
         for name in self.team_names:
             decision_step, term_step = self._e.get_steps(name)
 
-            step = term_step if term_step else decision_step
+            step = term_step if len(term_step) != 0 else decision_step
+            done = len(term_step) != 0 or done
+
+            # if len(term_step) != 0:
+            #     step.obs = step.obs[0]  # I *think* this is only used for multiple agents in a single scene
+
             obs += step.obs
+
             rews += [step.reward]
-            done = bool(term_step) or done
 
         return np.concatenate(obs), np.concatenate(rews), done, {'step': term_step if done else decision_step}
 
@@ -111,11 +122,16 @@ class UnityGymWrapper(gym.Env):
 if __name__ == '__main__':
     print('starting...')
     e = UnityGymWrapper(None, 0, max_steps=2000, render=True, time_scale=1.)
+    obs = e.reset()
     print(e.observation_space)
     done = False
-    while not done:
-        strikers = np.random.randint(-1, 2, (2, 3), dtype=np.int)
-        goalie = np.random.randint(-1, 2, (1, 3), dtype=np.int)
+    a = Policy.load('../../saved/soccer_ones-homerun/weights/17/policy-0').pheno()
+    b = Policy.load('../../saved/soccer_ones-homerun/weights/17/policy-1').pheno()
 
-        ob, rew, done, _ = e.step([strikers, goalie])
+    policies = [a, b]
+
+    while not done:
+        with torch.no_grad():
+            actions = [(policy(torch.from_numpy(ob).float(), to_int=True)) for policy, ob in zip(policies, obs)]
+        obs, rew, done, _ = e.step(actions)
     print('done')

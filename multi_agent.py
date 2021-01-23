@@ -6,18 +6,19 @@ import numpy as np
 import torch
 from mpi4py import MPI
 
-import es.evo.es as es
-from es.evo.noisetable import NoiseTable
-from es.evo.policy import Policy
-from es.nn.nn import FullyConnected
-from es.nn.optimizers import Adam, Optimizer
-from es.utils import utils, gym_runner
-from es.utils.obstat import ObStat
-from es.utils.rankers import CenteredRanker
-from es.utils.reporters import ReporterSet, LoggerReporter, StdoutReporter, MLFlowReporter
-from es.utils.training_result import TrainingResult, MultiAgentTrainingResult, RewardResult
-from es.utils.unity import UnityGymWrapper
-from es.utils.utils import generate_seed
+import src.core.es as es
+from src.core.noisetable import NoiseTable
+from src.core.policy import Policy
+from src.gym import gym_runner
+from src.gym.training_result import TrainingResult, RewardResult, MultiAgentTrainingResult
+from src.gym.unity import UnityGymWrapper
+from src.nn.nn import FullyConnected
+from src.nn.obstat import ObStat
+from src.nn.optimizers import Adam, Optimizer
+from src.utils import utils
+from src.utils.rankers import CenteredRanker
+from src.utils.reporters import LoggerReporter, ReporterSet, StdoutReporter, MLFlowReporter
+from src.utils.utils import generate_seed
 
 
 def inc_obstats(obstats: List[ObStat], results: Iterable[MultiAgentTrainingResult]):
@@ -53,7 +54,7 @@ def custom_test_params(n: int, policies: List[Policy], fit_fn, obstats: List[ObS
     steps = []
     n_objectives = 1  # todo
 
-    for i, policy in policies:
+    for i, policy in enumerate(policies):
         # collect positive/negative results + inds for each agent
         rp = [rp.trainingresults(RewardResult)[i] for rp in results_pos]
         rn = [rn.trainingresults(RewardResult)[i] for rn in results_neg]
@@ -72,6 +73,9 @@ if __name__ == '__main__':
     cfg_file = utils.parse_args()
     cfg = utils.load_config(cfg_file)
 
+    assert cfg.general.policies_per_gen % comm.size == 0 and (cfg.general.policies_per_gen / comm.size) % 2 == 0
+    eps_per_proc = int((cfg.general.policies_per_gen / comm.size) / 2)
+
     full_name = f'{os.path.basename(cfg.env.name).split(".")[0]}-{cfg.general.name}'
     mlflow_reporter = MLFlowReporter(comm, cfg) if cfg.general.mlflow else None
     reporter = ReporterSet(
@@ -79,7 +83,7 @@ if __name__ == '__main__':
         StdoutReporter(comm),
         mlflow_reporter
     )
-    env: UnityGymWrapper = UnityGymWrapper(cfg.env.name, comm.rank, max_steps=50, render=False, time_scale=10.)
+    env: UnityGymWrapper = UnityGymWrapper(cfg.env.name, comm.rank, max_steps=2000, render=False, time_scale=50.)
 
     # seeding; this must be done before creating the neural network so that params are deterministic across processes
     cfg.general.seed = (generate_seed(comm) if cfg.general.seed is None else cfg.general.seed)
@@ -95,21 +99,34 @@ if __name__ == '__main__':
     ranker = CenteredRanker()
 
 
-    def r_fn(model: torch.nn.Module, use_ac_noise=True) -> TrainingResult:
+    def r_fn(models: List[torch.nn.Module], use_ac_noise=True) -> TrainingResult:
         save_obs = rs.random() < cfg.policy.save_obs_chance
-        rews, behv, obs, stps = gym_runner.run_model(model, env, cfg.env.max_steps, rs if use_ac_noise else None,
-                                                     save_obs)
-        return RewardResult(rews, behv, obs, stps)
+        rews, behv, obs, stps = gym_runner.multi_agent_gym_runner(models,
+                                                                  env,
+                                                                  cfg.env.max_steps,
+                                                                  rs if use_ac_noise else None,
+                                                                  save_obs)
+        return MultiAgentTrainingResult(rews, behv, obs, stps)
 
 
-    for _ in range(cfg.general.gens):
+    for gen in range(cfg.general.gens):
+        reporter.start_gen()
         gen_obstats = [ObStat(env.observation_space[i].shape, 0) for i in range(2)]
-        results = custom_test_params(5, policies, r_fn, gen_obstats)
+        results = custom_test_params(eps_per_proc, policies, r_fn, gen_obstats)
         for (pos_res, neg_res, inds, steps), policy, optim in zip(results, policies, optims):
             ranker.rank(pos_res, neg_res, inds)
             es.approx_grad(ranker, nt, policy.flat_params, optim, cfg.general.batch_size, cfg.policy.l2coeff)
-            noiseless_result = r_fn(policy.pheno(np.zeros(len(policy))), False)
+            noiseless_result = RewardResult([0], [0], np.empty(1), 0)
             reporter.log_gen(ranker.fits, noiseless_result, policy, steps)
+
+        if comm.rank == 0:
+            reporter.print('saving')
+            save_folder = os.path.join('saved', full_name, 'weights', str(gen))
+            if not os.path.exists(save_folder): os.makedirs(save_folder)
+            for i, policy in enumerate(policies):
+                policy.save(save_folder, str(i))
+
+        reporter.end_gen()
 
     mlflow.end_run()  # in the case where mlflow is the reporter, just ending its run
 

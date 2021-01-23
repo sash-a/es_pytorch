@@ -3,7 +3,8 @@ from typing import List, Tuple
 import gym
 import numpy as np
 import torch
-from es.utils.unity import UnityGymWrapper
+
+from src.gym.unity import UnityGymWrapper
 
 BULLET_ENV_SUFFIX = 'BulletEnv'
 
