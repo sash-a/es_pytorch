@@ -60,9 +60,14 @@ def main(cfg):
 
     def r_fn(model: torch.nn.Module, use_ac_noise=True) -> TrainingResult:
         save_obs = rs.random() < cfg.policy.save_obs_chance
-        rews, behv, obs, steps = gym_runner.run_model(model, env, cfg.env.max_steps, rs if use_ac_noise else None,
-                                                      save_obs)
-        return RewardResult(rews, behv, obs, steps)
+        rews = np.zeros(cfg.env.max_steps)
+        for _ in range(max(1, cfg.general.eps_per_policy)):
+            rew, behv, obs, steps = gym_runner.run_model(model, env, cfg.env.max_steps,
+                                                         rs if use_ac_noise else None, save_obs)
+            rews[:len(rew)] += np.array(rew)
+
+        rews /= max(1, cfg.general.eps_per_policy)
+        return RewardResult(rews.tolist(), behv, obs, steps)
 
     time_since_best = 0
     noise_std_inc = 0.08

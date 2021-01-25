@@ -11,7 +11,7 @@
   },
   "policy": {
     "ac_std": 0.05,
-    "ac_std_decay": 0.99,
+    "ac_std_decay": 0.995,
     "l2coeff": 0.005,
     "lr": 0.01,
     "lr_limit": 0.001,
@@ -26,10 +26,10 @@
     "elite": 1
   },
   "general": {
-    "name": "obj_acstd",
-    "gens": 5000,
-    "policies_per_gen": 96000,
-    "eps_per_policy": 1,
+    "name": "obj_acstd_multiep",
+    "gens": 300,
+    "policies_per_gen": 12000,
+    "eps_per_policy": 5,
     "n_policies": 1,
     "batch_size": 500,
     "seed": null,
