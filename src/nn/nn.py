@@ -80,3 +80,22 @@ class FCIntegGausActionMulti(FullyConnected):
             action += rs.standard_normal(*action.shape) * action_std
 
         return action
+
+
+class FCBinned(FullyConnected):
+    def __init__(self, hidden_size: int, n_hidden: int, activation: nn.Module, env: gym.Env, policy_cfg):
+        self.bins = policy_cfg.n_bins
+
+        self.adim, self.ahigh, self.alow = env.action_space.shape[0], env.action_space.high, env.action_space.low
+        in_size = int(np.prod(env.observation_space.shape))
+        out_size = self.adim * self.bins
+
+        super().__init__(in_size, out_size, hidden_size, n_hidden, activation, env, policy_cfg)
+
+    def forward(self, inp: Tensor, **kwargs) -> np.ndarray:
+        inp = clamp((inp - self._obmean) / self._obstd, min=-ob_clip, max=ob_clip)
+        a: np.ndarray = self.model(inp.float()).numpy()
+        ac_range = (self.ahigh - self.alow)[None, :]
+
+        binned_ac = a.reshape((-1, self.adim, self.bins)).argmax(2)
+        return (1. / (self.bins - 1.) * binned_ac * ac_range + self.alow[None, :]).squeeze()

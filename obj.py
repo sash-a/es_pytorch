@@ -11,7 +11,7 @@ from src.core.noisetable import NoiseTable
 from src.core.policy import Policy
 from src.gym import gym_runner
 from src.gym.training_result import TrainingResult, RewardResult
-from src.nn.nn import FCIntegGausActionMulti
+from src.nn.nn import FCBinned
 from src.nn.obstat import ObStat
 from src.nn.optimizers import Adam, Optimizer
 from src.utils import utils
@@ -39,13 +39,14 @@ def main(cfg):
 
     # initializing policy, optimizer, noise and env
     obstat: ObStat = ObStat(env.observation_space.shape, 1e-2)  # eps to prevent dividing by zero at the beginning
-    nn = FCIntegGausActionMulti(int(np.prod(env.observation_space.shape)),
-                                int(np.prod(env.action_space.shape) * 2),
-                                256,
-                                2,
-                                torch.nn.Tanh(),
-                                env,
-                                cfg.policy)
+    nn = FCBinned(256, 2, torch.nn.Tanh(), env, cfg.policy)
+    # nn = FCIntegGausActionMulti(int(np.prod(env.observation_space.shape)),
+    #                             int(np.prod(env.action_space.shape) * 2),
+    #                             256,
+    #                             2,
+    #                             torch.nn.Tanh(),
+    #                             env,
+    #                             cfg.policy)
     policy: Policy = Policy(nn, cfg.noise.std)
     optim: Optimizer = Adam(policy, cfg.policy.lr)
     nt: NoiseTable = NoiseTable.create_shared(comm, cfg.noise.tbl_size, len(policy), reporter, cfg.general.seed)
