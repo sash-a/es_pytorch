@@ -7,8 +7,9 @@ from gym import spaces
 from mlagents_envs.base_env import ActionTuple
 from mlagents_envs.environment import UnityEnvironment
 from mlagents_envs.side_channel.engine_configuration_channel import EngineConfigurationChannel
+from munch import munchify
 
-from src.core.policy import Policy
+from src.nn.nn import FullyConnected
 
 
 class UnityGymWrapper(gym.Env):
@@ -55,10 +56,9 @@ class UnityGymWrapper(gym.Env):
         obs_spaces = []
         for team, spec in self._e.behavior_specs.items():
             agents_in_team = self.agent_per_team[team]
-            # vector observation is last
-            high = np.array([np.inf] * self._get_vec_obs_size(spec))
-            # todo in what scenario would the list of shapes be greater than 1?
-            obs_spaces += [spaces.Box(-high, high, shape=spec.observation_shapes[0], dtype=np.float32)] * agents_in_team
+            high = np.array([np.inf] * self._get_vec_obs_size(spec))  # vector observation is last
+            # sums observation_shapes because each sensor passes its obs separately and it's flatten into a single list
+            obs_spaces += [spaces.Box(-high, high, shape=(np.sum(spec.observation_shapes),))] * agents_in_team
         self._observation_space = spaces.Tuple(obs_spaces)
 
     observation_space = property(lambda self: self._observation_space)
@@ -71,14 +71,14 @@ class UnityGymWrapper(gym.Env):
                 result += obs_shape[0]
         return result
 
-    def step(self, actions: List[np.ndarray]) -> GymResult:
+    def step(self, actions: List[np.ndarray]) -> GymResult:  # todo add support for ActionTuple(continuous, discrete)
         curr_action_idx = 0
         for team in self.team_names:
             # print(f'start idx={curr_action_idx}. End idx = {curr_action_idx + self.agent_per_team[team]}')
             # print(f'len action list:{len(actions[curr_action_idx:curr_action_idx + self.agent_per_team[team]])}')
             action = np.vstack(actions[curr_action_idx:curr_action_idx + self.agent_per_team[team]])
             # print(f'actions shape:{action.shape}')
-            self._e.set_actions(team, ActionTuple(np.zeros((1, 0)), action))
+            self._e.set_actions(team, ActionTuple(action))
             curr_action_idx += self.agent_per_team[team]
 
         self._e.step()
@@ -108,8 +108,8 @@ class UnityGymWrapper(gym.Env):
 
             # if len(term_step) != 0:
             #     step.obs = step.obs[0]  # I *think* this is only used for multiple agents in a single scene
-
-            obs += step.obs
+            # print(step.obs)
+            obs += [[np.hstack(step.obs).squeeze()]]  # stacking the data from each sensor into single list
 
             rews += [step.reward]
 
@@ -121,17 +121,22 @@ class UnityGymWrapper(gym.Env):
 
 if __name__ == '__main__':
     print('starting...')
-    e = UnityGymWrapper(None, 0, max_steps=2000, render=True, time_scale=1.)
-    obs = e.reset()
-    print(e.observation_space)
-    done = False
-    a = Policy.load('../../saved/soccer_ones-homerun/weights/17/policy-0').pheno()
-    b = Policy.load('../../saved/soccer_ones-homerun/weights/17/policy-1').pheno()
+    env_path = '/home/sasha/Documents/es/ml-agents-release_12/envs/ant_gather/ant_gather.x86_64'
+    # env_path = '/home/sasha/Documents/es/ml-agents-release_12/envs/soccer_ones/headfull/soccer_ones.x86_64'
+    n_agents = 1
 
-    policies = [a, b]
+    e = UnityGymWrapper(env_path, 0, max_steps=2000, render=True, time_scale=1.)
+    obs = e.reset()
+    done = False
+    nns = [FullyConnected(e.observation_space[i].shape[0], e.action_space[i].shape[0], 256, 3, torch.nn.Tanh(), e,
+                          munchify({'ac_std': 0.05})) for i in range(n_agents)]
+    # a = Policy.load('../../saved/soccer_ones-homerun/weights/17/policy-0').pheno()
+    # b = Policy.load('../../saved/soccer_ones-homerun/weights/17/policy-1').pheno()
+    #
+    # policies = [a, b]
 
     while not done:
         with torch.no_grad():
-            actions = [(policy(torch.from_numpy(ob).float(), to_int=True)) for policy, ob in zip(policies, obs)]
+            actions = [nn(torch.from_numpy(ob).float()) for ob, nn in zip(obs, nns)]
         obs, rew, done, _ = e.step(actions)
     print('done')
