@@ -137,6 +137,6 @@ if __name__ == '__main__':
 
     while not done:
         with torch.no_grad():
-            actions = [nn(torch.from_numpy(ob).float()) for ob, nn in zip(obs, nns)]
+            actions = [nn(torch.from_numpy(ob).float(), rs=None) for ob, nn in zip(obs, nns)]
         obs, rew, done, _ = e.step(actions)
     print('done')
