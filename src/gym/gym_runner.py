@@ -34,7 +34,8 @@ def run_model(model: torch.nn.Module,
                 obs.append(ob)
 
             rews += [rew]
-            behv.extend(_get_pos(env.unwrapped))
+            # behv.extend(_get_pos(env.unwrapped))
+            behv.extend((0, 0, 0))
 
             if render:
                 env.render()

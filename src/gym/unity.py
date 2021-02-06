@@ -61,8 +61,14 @@ class UnityGymWrapper(gym.Env):
             obs_spaces += [spaces.Box(-high, high, shape=(np.sum(spec.observation_shapes),))] * agents_in_team
         self._observation_space = spaces.Tuple(obs_spaces)
 
-    observation_space = property(lambda self: self._observation_space)
-    action_space = property(lambda self: self._action_space)
+    # Aliasing the spaces to the spaces of the first individuals
+    observation_space = property(lambda self: self._observation_space[0])
+    action_space = property(lambda self: self._action_space[0])
+
+    observation_spaces = property(lambda self: self._observation_space)
+    action_spaces = property(lambda self: self._action_space)
+
+    spec = property(lambda self: self._e.behavior_specs)
 
     def _get_vec_obs_size(self, spec) -> int:
         result = 0

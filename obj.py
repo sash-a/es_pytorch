@@ -1,3 +1,4 @@
+import os
 from os import path
 
 import gym
@@ -11,7 +12,8 @@ from src.core.noisetable import NoiseTable
 from src.core.policy import Policy
 from src.gym import gym_runner
 from src.gym.training_result import TrainingResult, RewardResult
-from src.nn.nn import FCBinned
+from src.gym.unity import UnityGymWrapper
+from src.nn.nn import FullyConnected
 from src.nn.obstat import ObStat
 from src.nn.optimizers import Adam, Optimizer
 from src.utils import utils
@@ -22,7 +24,9 @@ from src.utils.reporters import LoggerReporter, ReporterSet, StdoutReporter, MLF
 def main(cfg):
     comm: MPI.Comm = MPI.COMM_WORLD
 
-    full_name = f'{cfg.env.name}-{cfg.general.name}'
+    full_name = f'{os.path.split(cfg.env.name)[1][:-7]}-{cfg.general.name}' \
+        if os.path.exists(cfg.env.name) else f'{cfg.env.name}-{cfg.general.name}'
+
     mlflow_reporter = MLFlowReporter(comm, cfg) if cfg.general.mlflow else None
     reporter = ReporterSet(
         LoggerReporter(comm, full_name),
@@ -30,7 +34,7 @@ def main(cfg):
         mlflow_reporter
     )
 
-    env: gym.Env = gym.make(cfg.env.name)
+    env: gym.Env = UnityGymWrapper(cfg.env.name, comm.rank) if os.path.exists(cfg.env.name) else gym.make(cfg.env.name)
 
     # seeding
     cfg.general.seed = (utils.generate_seed(comm) if cfg.general.seed is None else cfg.general.seed)
@@ -39,14 +43,13 @@ def main(cfg):
 
     # initializing policy, optimizer, noise and env
     obstat: ObStat = ObStat(env.observation_space.shape, 1e-2)  # eps to prevent dividing by zero at the beginning
-    nn = FCBinned(256, 2, torch.nn.Tanh(), env, cfg.policy)
-    # nn = FCIntegGausActionMulti(int(np.prod(env.observation_space.shape)),
-    #                             int(np.prod(env.action_space.shape) * 2),
-    #                             256,
-    #                             2,
-    #                             torch.nn.Tanh(),
-    #                             env,
-    #                             cfg.policy)
+    nn = FullyConnected(int(np.prod(env.observation_space.shape)),
+                        int(np.prod(env.action_space.shape)),
+                        256,
+                        2,
+                        torch.nn.Tanh(),
+                        env,
+                        cfg.policy)
     policy: Policy = Policy(nn, cfg.noise.std)
     optim: Optimizer = Adam(policy, cfg.policy.lr)
     nt: NoiseTable = NoiseTable.create_shared(comm, cfg.noise.tbl_size, len(policy), reporter, cfg.general.seed)

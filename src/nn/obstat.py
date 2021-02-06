@@ -17,8 +17,8 @@ class ObStat:
         self.count: float = eps
 
     def inc(self, s: np.ndarray, ssq: np.ndarray, c: float):
-        self.sum += s.astype(np.float64)
-        self.sumsq += ssq.astype(np.float64)
+        self.sum += s.squeeze().astype(np.float64)
+        self.sumsq += ssq.squeeze().astype(np.float64)
         self.count += c
 
     def __iadd__(self, other):
