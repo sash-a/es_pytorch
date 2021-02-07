@@ -1,3 +1,4 @@
+import warnings
 from typing import Tuple, List, Optional
 
 import gym
@@ -122,7 +123,7 @@ class UnityGymWrapper(gym.Env):
         return np.concatenate(obs), np.concatenate(rews), done, {'step': term_step if done else decision_step}
 
     def render(self, mode='human'):
-        raise Warning('Render cannot be called for unity env, it must be set in the constructor')
+        warnings.warn('Render cannot be called for unity env, it must be set in the constructor')
 
 
 if __name__ == '__main__':

@@ -140,20 +140,18 @@ class DefaultMpiReporter(MpiReporter, ABC):
     def _log_gen(self, fits: np.ndarray, noiseless_tr: TrainingResult, policy: Policy, steps: int):
         for i, col in enumerate(fits.T):
             # Objectives are grouped by column so this finds the avg and max of each objective
-            self.log({f'obj {i} avg': np.mean(col).round(2).item()})
-            self.log({f'obj {i} max': np.max(col).round(2).item()})
+            self.log({f'avg-{i}': np.mean(col).round(2).item()})
+            self.log({f'max-{i}': np.max(col).round(2).item()})
 
         self.cum_steps += steps
         dist, rew = calc_dist_rew(noiseless_tr)
 
-        self.log({f'fit': noiseless_tr.result})
-
         self.log({'dist': dist})
         self.log({'rew': rew})
 
+        self.print('')
         self.log({f'steps': steps})
         self.log({f'cum steps': self.cum_steps})
-
         self.log({'n fits ranked': len(fits)})
 
     def _end_gen(self):

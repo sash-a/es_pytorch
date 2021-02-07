@@ -6,6 +6,7 @@ import torch
 
 from src.core.policy import Policy
 from src.gym.gym_runner import run_model, BULLET_ENV_SUFFIX
+from src.gym.unity import UnityGymWrapper
 
 
 def run_saved_policy(policy_path: str, env: gym.Env, steps: int):
@@ -28,12 +29,15 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('env')
     parser.add_argument('pickle_file')
+    parser.add_argument('--unity', default=False, action='store_true')
     args = parser.parse_args()
 
     # noinspection PyUnresolvedReferences
     import pybullet_envs
 
-    if BULLET_ENV_SUFFIX in args.env:
+    if args.unity:
+        e = UnityGymWrapper(args.env, 0, render=True, time_scale=1.)
+    elif BULLET_ENV_SUFFIX in args.env:
         e = gym.make(args.env, render=True)
     else:
         e = gym.make(args.env)

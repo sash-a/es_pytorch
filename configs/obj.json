@@ -1,6 +1,6 @@
 {
   "env": {
-    "name": "ml-agents-release_12/envs/soccer_ones/headfull/soccer_ones.x86_64",
+    "name": "/home/sasha/Documents/es/ml-agents-release_12/envs/crawler/crawler.x86_64",
     "max_steps": 2000
   },
   "noise": {
@@ -26,10 +26,10 @@
     "elite": 1
   },
   "general": {
-    "name": "obj_acstd_multiep",
+    "name": "test_unity",
     "gens": 300,
-    "policies_per_gen": 12000,
-    "eps_per_policy": 5,
+    "policies_per_gen": 24,
+    "eps_per_policy": 1,
     "n_policies": 1,
     "batch_size": 500,
     "seed": null,
