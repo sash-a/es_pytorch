@@ -18,21 +18,21 @@ from src.nn.obstat import ObStat
 from src.nn.optimizers import Adam, Optimizer
 from src.utils import utils
 from src.utils.rankers import CenteredRanker, EliteRanker
-from src.utils.reporters import LoggerReporter, ReporterSet, StdoutReporter, MLFlowReporter
+from src.utils.reporters import LoggerReporter, StdoutReporter, MLFlowReporter, DefaultMpiReporterSet
 
 
 def main(cfg):
     comm: MPI.Comm = MPI.COMM_WORLD
 
-    full_name = f'{os.path.split(cfg.env.name)[1][:-7]}-{cfg.general.name}' \
-        if os.path.exists(cfg.env.name) else f'{cfg.env.name}-{cfg.general.name}'
+    full_name = f'{cfg.env.name}-{cfg.general.name}'
 
     mlflow_reporter = MLFlowReporter(comm, cfg) if cfg.general.mlflow else None
-    reporter = ReporterSet(
-        LoggerReporter(comm, full_name),
-        StdoutReporter(comm),
-        mlflow_reporter
-    )
+    if cfg.general.mlflow: mlflow_reporter.set_active_run(0)
+
+    reporter = DefaultMpiReporterSet(comm, full_name,
+                                     LoggerReporter(comm, full_name),
+                                     StdoutReporter(comm),
+                                     mlflow_reporter)
 
     env: gym.Env = UnityGymWrapper(cfg.env.name, comm.rank) if os.path.exists(cfg.env.name) else gym.make(cfg.env.name)
 
@@ -58,8 +58,6 @@ def main(cfg):
     if 0 < cfg.experimental.elite < 1:
         ranker = EliteRanker(CenteredRanker(), cfg.experimental.elite)
 
-    best_rew = -np.inf
-    best_dist = -np.inf
     best_max_rew = -np.inf  # highest achieved in any gen
 
     def r_fn(model: torch.nn.Module, use_ac_noise=True) -> TrainingResult:
@@ -75,8 +73,8 @@ def main(cfg):
 
     time_since_best = 0
     noise_std_inc = 0.08
+
     for gen in range(cfg.general.gens):
-        if cfg.general.mlflow: mlflow_reporter.set_active_run(0)
         reporter.start_gen()
 
         if cfg.noise.std_decay != 1:
@@ -96,8 +94,6 @@ def main(cfg):
 
         reporter.log({'obs recorded': obstat.count})
 
-        dist = np.linalg.norm(np.array(tr.positions[-3:-1]))
-        rew = np.sum(tr.rewards)
         max_rew_ind = np.argmax(ranker.fits[:, 0])
         max_rew = ranker.fits[:, 0][max_rew_ind]
 
@@ -113,15 +109,6 @@ def main(cfg):
             if time_since_best == 0:
                 ranker.elite_percent = 1
             reporter.print(f'elite percent: {ranker.elite_percent}')
-
-        save_policy = (rew > best_rew or dist > best_dist)
-        best_rew = max(rew, best_rew)
-        best_dist = max(dist, best_dist)
-
-        # Saving policy if it obtained a better reward or distance
-        if save_policy and comm.rank == 0:
-            policy.save(path.join('saved', full_name, 'weights'), str(gen))
-            reporter.print(f'saving policy with rew:{rew:0.2f} and dist:{dist:0.2f}')
 
         # Saving max rew if it obtained best ever rew
         if max_rew > best_max_rew and comm.rank == 0:
