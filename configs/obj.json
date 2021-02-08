@@ -26,9 +26,9 @@
     "elite": 1
   },
   "general": {
-    "name": "test_unity",
-    "gens": 300,
-    "policies_per_gen": 24,
+    "name": "unity",
+    "gens": 800,
+    "policies_per_gen": 12000,
     "eps_per_policy": 1,
     "n_policies": 1,
     "batch_size": 500,

@@ -165,10 +165,10 @@ class DefaultMpiReporterSet(DefaultMpiReporter):
 
         self.fit_folder = path.join('saved', run_name, 'fits')
         self.policy_folder = path.join('saved', run_name, 'weights')
-        if not path.exists(self.fit_folder):
-            os.makedirs(self.fit_folder)
+        if comm.rank == MpiReporter.MAIN:
+            if not path.exists(self.fit_folder): os.makedirs(self.fit_folder)
+            if not path.exists(self.policy_folder): os.makedirs(self.policy_folder)
 
-        self.fit_folder = None
         self.reporters = [reporter for reporter in reporters if reporter is not None]
 
         self.best_rew = 0
@@ -176,7 +176,7 @@ class DefaultMpiReporterSet(DefaultMpiReporter):
 
     def _log_gen(self, fits: np.ndarray, noiseless_tr: TrainingResult, policy: Policy, steps: int):
         super()._log_gen(fits, noiseless_tr, policy, steps)
-        if self.comm.rank == MpiReporter.MAIN:
+        if self.comm.rank == MpiReporter.MAIN:  # saving policy and all fits to files
             dist, rew = calc_dist_rew(noiseless_tr)
             save_policy = (rew > self.best_rew or dist > self.best_dist)
             self.best_rew = max(rew, self.best_rew)
@@ -184,6 +184,8 @@ class DefaultMpiReporterSet(DefaultMpiReporter):
             if save_policy:  # Saving policy if it obtained a better reward or distance
                 policy.save(self.policy_folder, str(self.gen))
                 self.print(f'saving policy with rew:{rew:0.2f} and dist:{dist:0.2f}')
+
+            np.save(path.join(f'{self.fit_folder}', f'{self.gen}.np'), fits)
 
     def _log(self, d: Dict[str, float]):
         for reporter in self.reporters:
@@ -213,6 +215,9 @@ class LoggerReporter(DefaultMpiReporter):
         if comm.rank == MpiReporter.MAIN:
             if log_folder is None:
                 log_folder = datetime.now().strftime('es__%d_%m_%y__%H_%M_%S')
+
+            if not path.exists(path.join('saved', log_folder)): os.makedirs(path.join('saved', log_folder))
+
             logging.basicConfig(filename=path.join('saved', log_folder, 'es.log'), level=logging.DEBUG)
             logging.info('initialized logger')
 
