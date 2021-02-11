@@ -36,7 +36,7 @@ if __name__ == '__main__':
     import pybullet_envs
 
     if args.unity:
-        e = UnityGymWrapper(args.env, 0, render=True, time_scale=1.)
+        e = UnityGymWrapper(args.env, 0, render=True, time_scale=1., seed=5)
     elif BULLET_ENV_SUFFIX in args.env:
         e = gym.make(args.env, render=True)
     else:

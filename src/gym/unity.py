@@ -16,14 +16,15 @@ from src.nn.nn import FullyConnected
 class UnityGymWrapper(gym.Env):
     GymResult = Tuple[np.ndarray, np.ndarray, bool, dict]
 
-    def __init__(self, name: Optional[str], rank: int, max_steps=2000, render=False, time_scale=50.):
+    def __init__(self, name: Optional[str], rank: int, max_steps=2000, render=False, time_scale=50., seed=1):
         channel = EngineConfigurationChannel()
         channel.set_configuration_parameters(time_scale=time_scale)
 
         self.n = 0  # number of steps
         self.max_steps = max_steps
 
-        self._e: UnityEnvironment = UnityEnvironment(name, rank, no_graphics=not render, side_channels=[channel])
+        self._e: UnityEnvironment = UnityEnvironment(name, rank, no_graphics=not render, side_channels=[channel],
+                                                     seed=seed)
         self._e.reset()
 
         self.team_names = list(self._e.behavior_specs.keys())

@@ -1,6 +1,6 @@
 {
   "env": {
-    "name": "/home/sasha/Documents/es/ml-agents-release_12/envs/crawler/crawler.x86_64",
+    "name": "ml-agents-release_12/envs/crawler/crawler.x86_64",
     "max_steps": 2000
   },
   "noise": {

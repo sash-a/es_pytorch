@@ -8,6 +8,7 @@ from src.gym.unity import UnityGymWrapper
 
 BULLET_ENV_SUFFIX = 'BulletEnv'
 
+hacky_crawler_rew = True
 
 def run_model(model: torch.nn.Module,
               env: gym.Env,
@@ -45,7 +46,8 @@ def run_model(model: torch.nn.Module,
 
     if not save_obs:
         obs.append(np.zeros(ob.shape))
-
+    if hacky_crawler_rew:
+        rews[-1] -= np.linalg.norm(obs[0][-21:-18])  # minus the dist to the target location in order to minimize it
     behv += behv[-3:] * (max_steps - int(len(behv) / 3))  # extending the behaviour vector to have `max_steps` elements
     return rews, behv, np.array(obs), step
 
