@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 
 import numpy as np
 
-from src.core.policy import Policy
+from es_pytorch.src.core.policy import Policy
 
 
 class Optimizer(ABC):

@@ -4,9 +4,9 @@ import gym
 import numpy as np
 import torch
 
-from src.core.policy import Policy
-from src.gym.gym_runner import run_model, BULLET_ENV_SUFFIX
-from src.gym.unity import UnityGymWrapper
+from es_pytorch.src.core.policy import Policy
+from es_pytorch.src.gym.gym_runner import run_model, BULLET_ENV_SUFFIX
+from es_pytorch.src.gym.unity import UnityGymWrapper
 
 
 def run_saved_policy(policy_path: str, env: gym.Env, steps: int):

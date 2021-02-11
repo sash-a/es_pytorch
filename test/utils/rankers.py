@@ -1,6 +1,6 @@
 import numpy as np
 
-from src.utils.rankers import MultiObjectiveRanker, CenteredRanker
+from es_pytorch.src.utils.rankers import MultiObjectiveRanker, CenteredRanker
 
 
 def test_moo_weighted_rank():

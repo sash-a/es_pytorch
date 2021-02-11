@@ -12,14 +12,14 @@ from numpy import ndarray
 from numpy.random import RandomState
 from torch.nn import Module
 
-from src.core.noisetable import NoiseTable
-from src.core.policy import Policy
-from src.gym.training_result import TrainingResult
-from src.nn.obstat import ObStat
-from src.nn.optimizers import Optimizer
-from src.utils.rankers import Ranker, CenteredRanker
-from src.utils.reporters import StdoutReporter, Reporter
-from src.utils.utils import scale_noise
+from es_pytorch.src.core.noisetable import NoiseTable
+from es_pytorch.src.core.policy import Policy
+from es_pytorch.src.gym.training_result import TrainingResult
+from es_pytorch.src.nn.obstat import ObStat
+from es_pytorch.src.nn.optimizers import Optimizer
+from es_pytorch.src.utils.rankers import Ranker, CenteredRanker
+from es_pytorch.src.utils.reporters import StdoutReporter, Reporter
+from es_pytorch.src.utils.utils import scale_noise
 
 
 # noinspection PyIncorrectDocstring
@@ -101,5 +101,5 @@ def _share_results(comm: MPI.Comm,
 
 def approx_grad(ranker: Ranker, nt: NoiseTable, params: ndarray, optim: Optimizer, batch_size: int, l2coeff: float):
     """Approximating gradient and update policy params"""
-    grad = scale_noise(ranker.ranked_fits, ranker.noise_inds, nt, batch_size) / ranker.n_fits_ranked
+    grad = scale_noise(ranker.ranked_fits, ranker.noise_inds, nt, batch_size, optim.dim) / ranker.n_fits_ranked
     optim.step(l2coeff * params - grad)

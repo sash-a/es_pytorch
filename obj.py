@@ -7,18 +7,18 @@ import numpy as np
 import torch
 from mpi4py import MPI
 
-import src.core.es as es
-from src.core.noisetable import NoiseTable
-from src.core.policy import Policy
-from src.gym import gym_runner
-from src.gym.training_result import TrainingResult, RewardResult
-from src.gym.unity import UnityGymWrapper
-from src.nn.nn import FullyConnected
-from src.nn.obstat import ObStat
-from src.nn.optimizers import Adam, Optimizer
-from src.utils import utils
-from src.utils.rankers import CenteredRanker, EliteRanker
-from src.utils.reporters import LoggerReporter, StdoutReporter, MLFlowReporter, DefaultMpiReporterSet
+import es_pytorch.src.core.es as es
+from es_pytorch.src.core.noisetable import NoiseTable
+from es_pytorch.src.core.policy import Policy
+from es_pytorch.src.gym import gym_runner
+from es_pytorch.src.gym.training_result import TrainingResult, RewardResult
+from es_pytorch.src.gym.unity import UnityGymWrapper
+from es_pytorch.src.nn.nn import FullyConnected
+from es_pytorch.src.nn.obstat import ObStat
+from es_pytorch.src.nn.optimizers import Adam, Optimizer
+from es_pytorch.src.utils import utils
+from es_pytorch.src.utils.rankers import CenteredRanker, EliteRanker
+from es_pytorch.src.utils.reporters import LoggerReporter, StdoutReporter, MLFlowReporter, DefaultMpiReporterSet
 
 
 def main(cfg):

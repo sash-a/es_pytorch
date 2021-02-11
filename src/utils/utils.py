@@ -8,16 +8,16 @@ import torch
 from mpi4py import MPI
 from munch import Munch, munchify
 
-from src.core.noisetable import NoiseTable
+from es_pytorch.src.core.noisetable import NoiseTable
 
 
-def batch_noise(inds: np.ndarray, nt: NoiseTable, batch_size: int):
+def batch_noise(inds: np.ndarray, nt: NoiseTable, policy_size: int, batch_size: int):
     """Need to batch noise otherwise will have to `dot` a large array"""
     assert inds.ndim == 1
 
     batch = []
     for idx in inds:
-        batch.append(nt[int(idx)])
+        batch.append(nt.get(int(idx), policy_size))
         if len(batch) == batch_size:
             yield np.array(batch)
             del batch[:]
@@ -26,13 +26,14 @@ def batch_noise(inds: np.ndarray, nt: NoiseTable, batch_size: int):
         yield np.array(batch)
 
 
-def scale_noise(fits: np.ndarray, noise_inds: np.ndarray, nt: NoiseTable, batch_size: int):
+def scale_noise(fits: np.ndarray, noise_inds: np.ndarray, nt: NoiseTable, batch_size: int, policy_size: int = None):
     """Scales the noise according to the fitness each noise ind achieved"""
     assert len(fits) == len(noise_inds)
+    policy_size = policy_size if policy_size is not None else nt.n_params
     total = 0
     batched_fits = [fits[i:min(i + batch_size, len(fits))] for i in range(0, len(fits), batch_size)]
 
-    for fit_batch, noise_batch in zip(batched_fits, batch_noise(noise_inds, nt, batch_size)):
+    for fit_batch, noise_batch in zip(batched_fits, batch_noise(noise_inds, nt, policy_size, batch_size)):
         total += np.dot(fit_batch, noise_batch)
 
     return total

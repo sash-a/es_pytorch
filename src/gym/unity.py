@@ -10,7 +10,7 @@ from mlagents_envs.environment import UnityEnvironment
 from mlagents_envs.side_channel.engine_configuration_channel import EngineConfigurationChannel
 from munch import munchify
 
-from src.nn.nn import FullyConnected
+from es_pytorch.src.nn.nn import FullyConnected
 
 
 class UnityGymWrapper(gym.Env):
@@ -18,12 +18,12 @@ class UnityGymWrapper(gym.Env):
 
     def __init__(self, name: Optional[str], rank: int, max_steps=2000, render=False, time_scale=50.):
         channel = EngineConfigurationChannel()
-        channel.set_configuration_parameters(time_scale=time_scale)
 
         self.n = 0  # number of steps
         self.max_steps = max_steps
 
         self._e: UnityEnvironment = UnityEnvironment(name, rank, no_graphics=not render, side_channels=[channel])
+        channel.set_configuration_parameters(time_scale=time_scale)
         self._e.reset()
 
         self.team_names = list(self._e.behavior_specs.keys())

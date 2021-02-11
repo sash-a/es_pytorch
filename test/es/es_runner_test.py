@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from src.core.es import _share_results
+from es_pytorch.src.core.es import _share_results
 # noinspection PyUnresolvedReferences
 from test import comm
 

@@ -1,7 +1,7 @@
 import numpy as np
 
-from src.core.noisetable import NoiseTable
-from src.utils.utils import batch_noise, scale_noise
+from es_pytorch.src.core.noisetable import NoiseTable
+from es_pytorch.src.utils.utils import batch_noise, scale_noise
 
 
 def test_batch_noise():

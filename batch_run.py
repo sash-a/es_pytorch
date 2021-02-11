@@ -7,7 +7,7 @@ from munch import munchify, Munch
 
 import nsra
 import obj
-from src.utils import utils
+from es_pytorch.src.utils import utils
 
 
 def merge(a: dict, b: dict):

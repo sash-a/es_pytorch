@@ -1,6 +1,6 @@
 import numpy as np
 
-from src.core.noisetable import create_shared_arr, NoiseTable
+from es_pytorch.src.core.noisetable import create_shared_arr, NoiseTable
 # noinspection PyUnresolvedReferences
 from test import comm
 

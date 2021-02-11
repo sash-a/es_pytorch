@@ -9,19 +9,19 @@ import torch
 from mpi4py import MPI
 from munch import Munch
 
-import src.core.es as es
-from src.core.noisetable import NoiseTable
-from src.core.policy import Policy
-from src.gym import gym_runner
-from src.gym.training_result import NSRResult, NSResult
-from src.nn.nn import FullyConnected
-from src.nn.obstat import ObStat
-from src.nn.optimizers import Adam, Optimizer
-from src.utils import utils
-from src.utils.novelty import update_archive, novelty
-from src.utils.rankers import CenteredRanker, MultiObjectiveRanker
-from src.utils.reporters import LoggerReporter, ReporterSet, StdoutReporter, MLFlowReporter
-from src.utils.utils import generate_seed
+import es_pytorch.src.core.es as es
+from es_pytorch.src.core.noisetable import NoiseTable
+from es_pytorch.src.core.policy import Policy
+from es_pytorch.src.gym import gym_runner
+from es_pytorch.src.gym.training_result import NSRResult, NSResult
+from es_pytorch.src.nn.nn import FullyConnected
+from es_pytorch.src.nn.obstat import ObStat
+from es_pytorch.src.nn.optimizers import Adam, Optimizer
+from es_pytorch.src.utils import utils
+from es_pytorch.src.utils.novelty import update_archive, novelty
+from es_pytorch.src.utils.rankers import CenteredRanker, MultiObjectiveRanker
+from es_pytorch.src.utils.reporters import LoggerReporter, ReporterSet, StdoutReporter, MLFlowReporter
+from es_pytorch.src.utils.utils import generate_seed
 
 
 def mean_behv(policy: Policy, r_fn: Callable[[torch.nn.Module], NSResult], rollouts: int):
