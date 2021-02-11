@@ -47,7 +47,7 @@ def run_model(model: torch.nn.Module,
     if not save_obs:
         obs.append(np.zeros(ob.shape))
     if hacky_crawler_rew:
-        rews[-1] -= np.linalg.norm(obs[0][-21:-18])  # minus the dist to the target location in order to minimize it
+        rews[-1] -= np.linalg.norm(ob[0][-21:-18])  # minus the dist to the target location in order to minimize it
     behv += behv[-3:] * (max_steps - int(len(behv) / 3))  # extending the behaviour vector to have `max_steps` elements
     return rews, behv, np.array(obs), step
 
