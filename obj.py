@@ -11,7 +11,7 @@ from src.core.noisetable import NoiseTable
 from src.core.policy import Policy
 from src.gym import gym_runner
 from src.gym.training_result import TrainingResult, RewardResult
-from src.nn.nn import FCBinned
+from src.nn.nn import FullyConnected
 from src.nn.obstat import ObStat
 from src.nn.optimizers import Adam, Optimizer
 from src.utils import utils
@@ -39,15 +39,11 @@ def main(cfg):
 
     # initializing policy, optimizer, noise and env
     obstat: ObStat = ObStat(env.observation_space.shape, 1e-2)  # eps to prevent dividing by zero at the beginning
-    nn = FCBinned(256, 2, torch.nn.Tanh(), env, cfg.policy)
-    # nn = FCIntegGausActionMulti(int(np.prod(env.observation_space.shape)),
-    #                             int(np.prod(env.action_space.shape) * 2),
-    #                             256,
-    #                             2,
-    #                             torch.nn.Tanh(),
-    #                             env,
-    #                             cfg.policy)
+    nn = FullyConnected(int(np.prod(env.observation_space.shape)),
+                        int(np.prod(env.action_space.shape)),
+                        256, 2, torch.nn.Tanh(), env, cfg.policy)
     policy: Policy = Policy(nn, cfg.noise.std)
+
     optim: Optimizer = Adam(policy, cfg.policy.lr)
     nt: NoiseTable = NoiseTable.create_shared(comm, cfg.noise.tbl_size, len(policy), reporter, cfg.general.seed)
 
@@ -77,17 +73,17 @@ def main(cfg):
         reporter.start_gen()
 
         if cfg.noise.std_decay != 1:
-            reporter.log({'noise std': cfg.noise.std})
+            reporter.log({'noise std': policy.std})
         if cfg.policy.lr_decay != 1:
-            reporter.log({'lr': cfg.policy.lr})
+            reporter.log({'lr': optim.lr})
         if cfg.policy.ac_std_decay != 1:
-            reporter.log({'ac std': cfg.policy.ac_std})
+            reporter.log({'ac std': nn._action_std})
 
         nn.set_ob_mean_std(obstat.mean, obstat.std)
         tr, gen_obstat = es.step(cfg, comm, policy, optim, nt, env, r_fn, rs, ranker, reporter)
         obstat += gen_obstat  # adding the new observations to the global obstat
 
-        cfg.policy.ac_std = nn._action_std = cfg.policy.ac_std * cfg.policy.ac_std_decay
+        cfg.policy.ac_std = nn._action_std = nn._action_std * cfg.policy.ac_std_decay
         cfg.noise.std = policy.std = max(cfg.noise.std * cfg.noise.std_decay, cfg.noise.std_limit)
         cfg.policy.lr = optim.lr = max(cfg.policy.lr * cfg.policy.lr_decay, cfg.policy.lr_limit)
 

@@ -6,6 +6,8 @@ import pickle
 import numpy as np
 import torch
 
+from src.nn.obstat import ObStat
+
 
 def init_normal(m):
     if type(m) == torch.nn.Linear:
@@ -21,6 +23,7 @@ class Policy(torch.nn.Module):
         self.std = std
 
         self.flat_params: np.ndarray = Policy.get_flat(module)
+        self.obstat: ObStat = ObStat()
 
     def __len__(self):
         return len(self.flat_params)

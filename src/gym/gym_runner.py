@@ -4,6 +4,8 @@ import gym
 import numpy as np
 import torch
 
+# noinspection PyUnresolvedReferences
+import src.hbaselines.envs
 from src.gym.unity import UnityGymWrapper
 
 BULLET_ENV_SUFFIX = 'BulletEnv'
@@ -94,6 +96,9 @@ def multi_agent_gym_runner(policies: List[torch.nn.Module],
 
 
 def _get_pos(env):
+    if env.spec.id[:-3] in ["AntMaze", "AntPush", "AntFall"]:
+        return env._robot_x, env._robot_y, 0
+
     if BULLET_ENV_SUFFIX in env.spec.id:  # bullet env
         return env.robot_body.get_pose()[:3]
     else:  # mujoco env
