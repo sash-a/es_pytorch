@@ -31,7 +31,7 @@ def run_model(model: torch.nn.Module,
             ob = torch.from_numpy(ob).float()
 
             action = model(ob, rs=rs)
-            ob, rew, done, _ = env.step(action)
+            ob, rew, done, _ = env.step(action.numpy())
             if save_obs:
                 obs.append(ob)
 

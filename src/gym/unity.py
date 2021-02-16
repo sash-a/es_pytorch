@@ -7,9 +7,8 @@ from gym import spaces
 from mlagents_envs.base_env import ActionTuple
 from mlagents_envs.environment import UnityEnvironment
 from mlagents_envs.side_channel.engine_configuration_channel import EngineConfigurationChannel
-from munch import munchify
 
-from src.nn.nn import FullyConnected
+from src.nn.nn import FeedForward
 
 
 class UnityGymWrapper(gym.Env):
@@ -128,8 +127,7 @@ if __name__ == '__main__':
     e = UnityGymWrapper(env_path, 0, max_steps=2000, render=True, time_scale=1.)
     obs = e.reset()
     done = False
-    nns = [FullyConnected(e.observation_space[i].shape[0], e.action_space[i].shape[0], 256, 3, torch.nn.Tanh(), e,
-                          munchify({'ac_std': 0.05})) for i in range(n_agents)]
+    nns = [FeedForward([256, 256], torch.nn.Tanh(), e, 0.02)]
     # a = Policy.load('../../saved/soccer_ones-homerun/weights/17/policy-0').pheno()
     # b = Policy.load('../../saved/soccer_ones-homerun/weights/17/policy-1').pheno()
     #

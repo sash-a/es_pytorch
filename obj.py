@@ -11,8 +11,7 @@ from src.core.noisetable import NoiseTable
 from src.core.policy import Policy
 from src.gym import gym_runner
 from src.gym.training_result import TrainingResult, RewardResult
-from src.nn.nn import FullyConnected
-from src.nn.obstat import ObStat
+from src.nn.nn import FeedForward, BaseNet
 from src.nn.optimizers import Adam, Optimizer
 from src.utils import utils
 from src.utils.rankers import CenteredRanker, EliteRanker
@@ -38,11 +37,12 @@ def main(cfg):
     reporter.print(f'seed:{cfg.general.seed}')
 
     # initializing policy, optimizer, noise and env
-    obstat: ObStat = ObStat(env.observation_space.shape, 1e-2)  # eps to prevent dividing by zero at the beginning
-    nn = FullyConnected(int(np.prod(env.observation_space.shape)),
-                        int(np.prod(env.action_space.shape)),
-                        256, 2, torch.nn.Tanh(), env, cfg.policy)
-    policy: Policy = Policy(nn, cfg.noise.std)
+    if 'load' in cfg.policy:
+        policy: Policy = Policy.load(cfg.policy.load)
+        nn: BaseNet = policy._module
+    else:
+        nn: BaseNet = FeedForward(cfg.policy.layer_sizes, torch.nn.Tanh(), env, cfg.policy.ac_std, cfg.policy.ob_clip)
+        policy: Policy = Policy(nn, cfg.noise.std)
 
     optim: Optimizer = Adam(policy, cfg.policy.lr)
     nt: NoiseTable = NoiseTable.create_shared(comm, cfg.noise.tbl_size, len(policy), reporter, cfg.general.seed)
@@ -79,15 +79,14 @@ def main(cfg):
         if cfg.policy.ac_std_decay != 1:
             reporter.log({'ac std': nn._action_std})
 
-        nn.set_ob_mean_std(obstat.mean, obstat.std)
         tr, gen_obstat = es.step(cfg, comm, policy, optim, nt, env, r_fn, rs, ranker, reporter)
-        obstat += gen_obstat  # adding the new observations to the global obstat
+        policy.update_obstat(gen_obstat)
 
         cfg.policy.ac_std = nn._action_std = nn._action_std * cfg.policy.ac_std_decay
         cfg.noise.std = policy.std = max(cfg.noise.std * cfg.noise.std_decay, cfg.noise.std_limit)
         cfg.policy.lr = optim.lr = max(cfg.policy.lr * cfg.policy.lr_decay, cfg.policy.lr_limit)
 
-        reporter.log({'obs recorded': obstat.count})
+        reporter.log({'obs recorded': policy.obstat.count})
 
         dist = np.linalg.norm(np.array(tr.positions[-3:-1]))
         rew = np.sum(tr.rewards)

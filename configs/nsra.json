@@ -10,11 +10,16 @@
     "std_decay": 1
   },
   "policy": {
+    "layer_sizes": [
+      256,
+      256
+    ],
     "ac_std": 0.01,
     "l2coeff": 0.005,
     "lr": 0.01,
     "lr_limit": 0.001,
     "lr_decay": 1,
+    "ob_clip": 5,
     "save_obs_chance": 0.01
   },
   "general": {

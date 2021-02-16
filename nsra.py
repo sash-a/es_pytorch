@@ -14,7 +14,7 @@ from src.core.noisetable import NoiseTable
 from src.core.policy import Policy
 from src.gym import gym_runner
 from src.gym.training_result import NSRResult, NSResult
-from src.nn.nn import FullyConnected
+from src.nn.nn import FeedForward
 from src.nn.obstat import ObStat
 from src.nn.optimizers import Adam, Optimizer
 from src.utils import utils
@@ -95,11 +95,10 @@ def main(cfg: Munch):
         return NSRResult(rews, behv, obs, steps, archive, cfg.novelty.k)
 
     # init population
-    in_size, out_size = np.prod(env.observation_space.shape), np.prod(env.action_space.shape)
     population = []
     nns = []
     for _ in range(cfg.general.n_policies):
-        nns.append(FullyConnected(int(in_size), int(out_size), 256, 2, torch.nn.Tanh(), env, cfg.policy))
+        nns.append(FeedForward(cfg.policy.layer_sizes, torch.nn.Tanh(), env, cfg.policy.ac_std, cfg.policy.ob_clip))
         population.append(Policy(nns[-1], cfg.noise.std))
     # init optimizer and noise table
     optims: List[Optimizer] = [Adam(policy, cfg.policy.lr) for policy in population]

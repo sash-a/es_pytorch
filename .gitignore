@@ -8,5 +8,6 @@ saved/
 bullet3/
 mujoco-py/
 ml-agents*/
+h-baselines/
 
 *mlruns*/

@@ -8,7 +8,7 @@ from src.core.noisetable import NoiseTable
 from src.core.policy import Policy
 from src.gym import gym_runner
 from src.gym.training_result import TrainingResult, RewardResult
-from src.nn.nn import FullyConnected
+from src.nn.nn import FeedForward
 from src.nn.obstat import ObStat
 from src.nn.optimizers import Adam, Optimizer
 from src.utils import utils
@@ -29,8 +29,7 @@ if __name__ == '__main__':
 
     # initializing obstat, policy, optimizer, noise and ranker
     obstat: ObStat = ObStat(env.observation_space.shape, 1e-2)  # eps to prevent dividing by zero at the beginning
-    nn = FullyConnected(int(np.prod(env.observation_space.shape)), int(np.prod(env.action_space.shape)),
-                        256, 2, torch.nn.Tanh(), env, cfg.policy)
+    nn = FeedForward(cfg.policy.layer_sizes, torch.nn.Tanh(), env, cfg.policy.ac_std, cfg.policy.ob_clip)
     policy: Policy = Policy(nn, cfg.noise.std)
     optim: Optimizer = Adam(policy, cfg.policy.lr)
     nt: NoiseTable = NoiseTable.create_shared(comm, cfg.noise.tbl_size, len(policy), None, cfg.general.seed)

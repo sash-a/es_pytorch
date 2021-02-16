@@ -7,9 +7,14 @@
     "std": 0.02
   },
   "policy": {
+    "layer_sizes": [
+      256,
+      256
+    ],
     "ac_std": 0.01,
     "l2coeff": 0.005,
     "lr": 0.01,
+    "ob_clip": 5,
     "save_obs_chance": 0.01
   },
   "general": {

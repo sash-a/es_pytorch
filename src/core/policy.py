@@ -6,6 +6,7 @@ import pickle
 import numpy as np
 import torch
 
+from src.nn.nn import BaseNet
 from src.nn.obstat import ObStat
 
 
@@ -15,15 +16,15 @@ def init_normal(m):
 
 
 class Policy(torch.nn.Module):
-    def __init__(self, module: torch.nn.Module, std: float):
+    def __init__(self, module: BaseNet, std: float):
         super().__init__()
         module.apply(init_normal)
 
-        self._module: torch.nn.Module = module
+        self._module: BaseNet = module
         self.std = std
 
         self.flat_params: np.ndarray = Policy.get_flat(module)
-        self.obstat: ObStat = ObStat()
+        self.obstat: ObStat = ObStat(module._obmean.shape, 1e-2)
 
     def __len__(self):
         return len(self.flat_params)
@@ -41,6 +42,7 @@ class Policy(torch.nn.Module):
     def save(self, folder: str, suffix: str):
         if not os.path.exists(folder):
             os.makedirs(folder)
+
         pickle.dump(self, open(os.path.join(folder, f'policy-{suffix}'), 'wb'))
 
     def set_nn_params(self, params: np.ndarray) -> torch.nn.Module:
@@ -62,6 +64,10 @@ class Policy(torch.nn.Module):
         self.set_nn_params(params)
 
         return self._module
+
+    def update_obstat(self, obstat: ObStat):
+        self.obstat += obstat  # adding the new observations to the global obstat
+        self._module.set_ob_mean_std(self.obstat.mean, self.obstat.std)
 
     def forward(self, inp):
         self._module.forward(inp)
