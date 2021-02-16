@@ -15,7 +15,6 @@ def run_model(model: torch.nn.Module,
               env: gym.Env,
               max_steps: int,
               rs: np.random.RandomState = None,
-              save_obs: bool = False,
               render: bool = False) -> Tuple[List[float], List[float], np.ndarray, int]:
     """
     Evaluates model on the provided env
@@ -32,10 +31,9 @@ def run_model(model: torch.nn.Module,
 
             action = model(ob, rs=rs)
             ob, rew, done, _ = env.step(action.numpy())
-            if save_obs:
-                obs.append(ob)
 
             rews += [rew]
+            obs.append(ob)
             behv.extend(_get_pos(env.unwrapped))
 
             if render:
@@ -43,9 +41,6 @@ def run_model(model: torch.nn.Module,
 
             if done:
                 break
-
-    if not save_obs:
-        obs.append(np.zeros(ob.shape))
 
     behv += behv[-3:] * (max_steps - int(len(behv) / 3))  # extending the behaviour vector to have `max_steps` elements
     return rews, behv, np.array(obs), step
@@ -96,8 +91,8 @@ def multi_agent_gym_runner(policies: List[torch.nn.Module],
 
 
 def _get_pos(env):
-    if env.spec.id[:-3] in ["AntMaze", "AntPush", "AntFall"]:
-        return env._robot_x, env._robot_y, 0
+    if env.spec.id[:-3] in ["AntMaze", "AntPush", "AntFall"]:  # hrl ant env
+        return env.wrapped_env.get_body_com("torso")[:3]
 
     if BULLET_ENV_SUFFIX in env.spec.id:  # bullet env
         return env.robot_body.get_pose()[:3]

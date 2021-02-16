@@ -14,7 +14,7 @@ from src.gym.training_result import TrainingResult, RewardResult, MultiAgentTrai
 from src.gym.unity import UnityGymWrapper
 from src.nn.nn import FeedForward
 from src.nn.obstat import ObStat
-from src.nn.optimizers import Adam, Optimizer
+from src.nn.optimizers import Adam
 from src.utils import utils
 from src.utils.rankers import CenteredRanker
 from src.utils.reporters import LoggerReporter, ReporterSet, StdoutReporter, MLFlowReporter
@@ -92,29 +92,28 @@ if __name__ == '__main__':
     # initializing obstat, policy, optimizer, noise and ranker
     obstats: List[ObStat] = [ObStat(env.observation_space[i].shape, 1e-2) for i in range(2)]
     neuralnets = [FeedForward(cfg.policy.layer_sizes, torch.nn.Tanh(), env, cfg.policy.ac_std, cfg.policy.ob_clip)]
-    policies: List[Policy] = [Policy(nn, cfg.noise.std) for nn in neuralnets]
-    optims: List[Optimizer] = [Adam(policy, cfg.policy.lr) for policy in policies]
+    policies: List[Policy] = [Policy(nn, cfg, Adam) for nn in neuralnets]
     nt: NoiseTable = NoiseTable.create_shared(comm, cfg.noise.tbl_size, len(policies[0]), None, cfg.general.seed)
     ranker = CenteredRanker()
 
 
     def r_fn(models: List[torch.nn.Module], use_ac_noise=True) -> TrainingResult:
         save_obs = rs.random() < cfg.policy.save_obs_chance
-        rews, behv, obs, stps = gym_runner.multi_agent_gym_runner(models,
-                                                                  env,
-                                                                  cfg.env.max_steps,
-                                                                  rs if use_ac_noise else None,
-                                                                  save_obs)
-        return MultiAgentTrainingResult(rews, behv, obs, stps)
+        rews, behv, obs, steps = gym_runner.multi_agent_gym_runner(models,
+                                                                   env,
+                                                                   cfg.env.max_steps,
+                                                                   rs if use_ac_noise else None)
+        return MultiAgentTrainingResult(rews, behv,
+                                        obs if save_obs else np.array([np.zeros(env.observation_space.shape)]), steps)
 
 
     for gen in range(cfg.general.gens):
         reporter.start_gen()
         gen_obstats = [ObStat(env.observation_space[i].shape, 0) for i in range(2)]
         results = custom_test_params(eps_per_proc, policies, r_fn, gen_obstats)
-        for (pos_res, neg_res, inds, steps), policy, optim in zip(results, policies, optims):
+        for (pos_res, neg_res, inds, steps), policy in zip(results, policies):
             ranker.rank(pos_res, neg_res, inds)
-            es.approx_grad(ranker, nt, policy.flat_params, optim, cfg.general.batch_size, cfg.policy.l2coeff)
+            es.approx_grad(policy, ranker, nt, policy.flat_params, cfg.general.batch_size, cfg.policy.l2coeff)
             noiseless_result = RewardResult([0], [0], np.empty(1), 0)
             reporter.log_gen(ranker.fits, noiseless_result, policy, steps)
 

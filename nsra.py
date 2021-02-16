@@ -15,8 +15,7 @@ from src.core.policy import Policy
 from src.gym import gym_runner
 from src.gym.training_result import NSRResult, NSResult
 from src.nn.nn import FeedForward
-from src.nn.obstat import ObStat
-from src.nn.optimizers import Adam, Optimizer
+from src.nn.optimizers import Adam
 from src.utils import utils
 from src.utils.novelty import update_archive, novelty
 from src.utils.rankers import CenteredRanker, MultiObjectiveRanker
@@ -89,23 +88,21 @@ def main(cfg: Munch):
 
     archive: Optional[np.ndarray] = None
 
-    def ns_fn(model: torch.nn.Module) -> NSRResult:
+    def ns_fn(model: torch.nn.Module, use_ac_noise=True) -> NSRResult:
         """Reward function"""
-        rews, behv, obs, steps = gym_runner.run_model(model, env, cfg.env.max_steps, rs)
-        return NSRResult(rews, behv, obs, steps, archive, cfg.novelty.k)
+        save_obs = rs.random() < cfg.policy.save_obs_chance
+        rews, behv, obs, steps = gym_runner.run_model(model, env, cfg.env.max_steps, rs if use_ac_noise else None)
+        return NSRResult(rews, behv, obs if save_obs else np.array([np.zeros(env.observation_space.shape)]), steps,
+                         archive, cfg.novelty.k)
 
     # init population
     population = []
     nns = []
     for _ in range(cfg.general.n_policies):
         nns.append(FeedForward(cfg.policy.layer_sizes, torch.nn.Tanh(), env, cfg.policy.ac_std, cfg.policy.ob_clip))
-        population.append(Policy(nns[-1], cfg.noise.std))
+        population.append(Policy(nns[-1], cfg, Adam))
     # init optimizer and noise table
-    optims: List[Optimizer] = [Adam(policy, cfg.policy.lr) for policy in population]
     nt: NoiseTable = NoiseTable.create_shared(comm, cfg.noise.tbl_size, len(population[0]), reporter, cfg.general.seed)
-
-    obstat: ObStat = ObStat(env.observation_space.shape, 1e-2)  # eps to prevent dividing by zero at the beginning
-
     policies_best_rewards = [-np.inf] * cfg.general.n_policies
     time_since_best = [0 for _ in range(cfg.general.n_policies)]  # TODO should this be per individual?
     obj_weight = [cfg.nsr.initial_w for _ in range(cfg.general.n_policies)]
@@ -120,7 +117,6 @@ def main(cfg: Munch):
         idx = random.choices(list(range(len(policies_novelties))), weights=policies_novelties, k=1)[0]
         if cfg.nsr.progressive: idx = gen % cfg.general.n_policies
         idx = comm.scatter([idx] * comm.size)
-        nns[idx].set_ob_mean_std(obstat.mean, obstat.std)
         ranker = MultiObjectiveRanker(CenteredRanker(), obj_weight[idx])
         # reporting
         if cfg.general.mlflow: mlflow_reporter.set_active_run(idx)
@@ -129,11 +125,12 @@ def main(cfg: Munch):
         reporter.log({'w': obj_weight[idx]})
         reporter.log({'time since best': time_since_best[idx]})
         # running es
-        tr, gen_obstat = es.step(cfg, comm, population[idx], optims[idx], nt, env, ns_fn, rs, ranker, reporter)
+        tr, gen_obstat = es.step(cfg, comm, population[idx], nt, env, ns_fn, rs, ranker, reporter)
+        for policy in population:
+            policy.update_obstat(gen_obstat)  # shared obstat
+
         # sharing result and obstat
         tr = comm.scatter([tr] * comm.size)
-        gen_obstat.mpi_inc(comm)
-        obstat += gen_obstat
         # updating the weighting for choosing the next policy to be evaluated
         behv = comm.scatter([mean_behv(population[idx], ns_fn, cfg.novelty.rollouts)] * comm.size)
         nov = comm.scatter([novelty(behv, archive, cfg.novelty.k)] * comm.size)

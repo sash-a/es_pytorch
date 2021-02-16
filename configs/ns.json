@@ -1,6 +1,6 @@
 {
   "env": {
-    "name": "HopperBulletEnv-v0",
+    "name": "AntMaze-v0",
     "max_steps": 2000
   },
   "noise": {
@@ -10,17 +10,24 @@
     "std_decay": 1
   },
   "policy": {
-    "ac_std": 0.01,
+    "layer_sizes": [
+      256,
+      256,
+      256
+    ],
+    "ac_std": 0.05,
+    "ac_std_decay": 0.99,
     "l2coeff": 0.005,
     "lr": 0.01,
     "lr_limit": 0.001,
     "lr_decay": 1,
-    "save_obs_chance": 0.01
+    "save_obs_chance": 0.01,
+    "ob_clip": 5
   },
   "general": {
     "name": "ns",
     "gens": 5000,
-    "policies_per_gen": 9600,
+    "policies_per_gen": 4800,
     "eps_per_policy": 1,
     "n_policies": 5,
     "batch_size": 500,

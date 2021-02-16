@@ -2,12 +2,15 @@ from __future__ import annotations
 
 import os
 import pickle
+from typing import Type
 
 import numpy as np
 import torch
+from munch import Munch
 
 from src.nn.nn import BaseNet
 from src.nn.obstat import ObStat
+from src.nn.optimizers import Optimizer
 
 
 def init_normal(m):
@@ -15,16 +18,16 @@ def init_normal(m):
         torch.nn.init.kaiming_normal_(m.weight)
 
 
-class Policy(torch.nn.Module):
-    def __init__(self, module: BaseNet, std: float):
-        super().__init__()
+class Policy:
+    def __init__(self, module: BaseNet, cfg: Munch, OptimType: Type[Optimizer]):
         module.apply(init_normal)
 
         self._module: BaseNet = module
-        self.std = std
+        self.std = cfg.noise.std
 
         self.flat_params: np.ndarray = Policy.get_flat(module)
         self.obstat: ObStat = ObStat(module._obmean.shape, 1e-2)
+        self.optim = OptimType(self, cfg.policy.lr)
 
     def __len__(self):
         return len(self.flat_params)
@@ -68,6 +71,3 @@ class Policy(torch.nn.Module):
     def update_obstat(self, obstat: ObStat):
         self.obstat += obstat  # adding the new observations to the global obstat
         self._module.set_ob_mean_std(self.obstat.mean, self.obstat.std)
-
-    def forward(self, inp):
-        self._module.forward(inp)

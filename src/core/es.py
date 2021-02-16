@@ -16,7 +16,6 @@ from src.core.noisetable import NoiseTable
 from src.core.policy import Policy
 from src.gym.training_result import TrainingResult
 from src.nn.obstat import ObStat
-from src.nn.optimizers import Optimizer
 from src.utils.rankers import Ranker, CenteredRanker
 from src.utils.reporters import StdoutReporter, Reporter
 from src.utils.utils import scale_noise
@@ -26,7 +25,6 @@ from src.utils.utils import scale_noise
 def step(cfg,
          comm: MPI.Comm,
          policy: Policy,
-         optim: Optimizer,
          nt: NoiseTable,
          env: gym.Env,
          fit_fn: Callable[[Module], TrainingResult],
@@ -48,7 +46,7 @@ def step(cfg,
     reporter.print(f'n dupes: {len(inds) - len(set(inds))}')
 
     ranker.rank(pos_res, neg_res, inds)
-    approx_grad(ranker, nt, policy.flat_params, optim, cfg.general.batch_size, cfg.policy.l2coeff)
+    approx_grad(policy, ranker, nt, policy.flat_params, cfg.general.batch_size, cfg.policy.l2coeff)
     noiseless_result = fit_fn(policy.pheno(np.zeros(len(policy))), False)
     reporter.log_gen(ranker.fits, noiseless_result, policy, steps)
 
@@ -99,7 +97,7 @@ def _share_results(comm: MPI.Comm,
     return results.reshape((-1, 1 + 2 * objectives))  # flattening the process dim
 
 
-def approx_grad(ranker: Ranker, nt: NoiseTable, params: ndarray, optim: Optimizer, batch_size: int, l2coeff: float):
+def approx_grad(policy: Policy, ranker: Ranker, nt: NoiseTable, params: ndarray, batch_size: int, l2coeff: float):
     """Approximating gradient and update policy params"""
     grad = scale_noise(ranker.ranked_fits, ranker.noise_inds, nt, batch_size) / ranker.n_fits_ranked
-    optim.step(l2coeff * params - grad)
+    policy.optim.step(l2coeff * params - grad)

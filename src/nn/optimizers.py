@@ -3,12 +3,10 @@ from abc import ABC, abstractmethod
 
 import numpy as np
 
-from src.core.policy import Policy
-
 
 class Optimizer(ABC):
-    def __init__(self, policy: Policy, lr: float):
-        self.policy: Policy = policy
+    def __init__(self, policy, lr: float):
+        self.policy = policy
         self.lr: float = lr
         self.dim: int = len(policy)
         self.t: int = 0
@@ -29,7 +27,7 @@ class Optimizer(ABC):
 
 
 class SimpleES(Optimizer):
-    def __init__(self, policy: Policy, lr: float):
+    def __init__(self, policy, lr: float):
         super().__init__(policy, lr)
 
     def _compute_step(self, globalg: np.ndarray):
@@ -37,7 +35,7 @@ class SimpleES(Optimizer):
 
 
 class SGD(Optimizer):
-    def __init__(self, policy: Policy, lr, momentum=0.9):
+    def __init__(self, policy, lr, momentum=0.9):
         Optimizer.__init__(self, policy, lr)
         self.v = np.zeros(self.dim, dtype=np.float32)
         self.momentum = momentum
@@ -48,7 +46,7 @@ class SGD(Optimizer):
 
 
 class Adam(Optimizer):
-    def __init__(self, policy: Policy, lr, beta1=0.9, beta2=0.999, epsilon=1e-08):
+    def __init__(self, policy, lr, beta1=0.9, beta2=0.999, epsilon=1e-08):
         Optimizer.__init__(self, policy, lr)
         self.beta1 = beta1
         self.beta2 = beta2
