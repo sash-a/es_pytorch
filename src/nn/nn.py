@@ -108,9 +108,9 @@ class FFBinned(BaseNet):
 
         super().__init__(layers, env.observation_space.shape, ob_clip)
 
-    def forward(self, inp: Tensor, **kwargs) -> np.ndarray:
+    def forward(self, inp: Tensor, **kwargs) -> Tensor:
         inp = clamp((inp - self._obmean) / self._obstd, min=-self.ob_clip, max=self.ob_clip)
-        a: np.ndarray = self.model(inp.float()).numpy()
+        a: Tensor = self.model(inp.float())
         ac_range = (self.ahigh - self.alow)[None, :]
 
         binned_ac = a.reshape((-1, self.adim, self.bins)).argmax(2)
