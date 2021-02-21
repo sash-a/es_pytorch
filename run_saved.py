@@ -18,7 +18,7 @@ def run_saved_pytorch(policy_path: str, env: gym.Env, steps: int):
 
 def run_saved(model: torch.nn.Module, env, steps):
     while True:
-        r, d, _, _ = run_model(model, env, steps, render=True)
+        r, d, _, s = run_model(model, env, steps, render=True)
         print(f'\n\nrewards {np.sum(r)}\ndist {np.linalg.norm(np.array(d[-3:-1]))}\n\n')
 
 
@@ -35,6 +35,7 @@ if __name__ == '__main__':
 
     if BULLET_ENV_SUFFIX in args.env:
         e = gym.make(args.env, render=True)
+        e.render('human')
     else:
         e = gym.make(args.env)
 

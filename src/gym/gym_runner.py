@@ -31,7 +31,6 @@ def run_model(model: torch.nn.Module,
 
             action = model(ob, rs=rs)
             ob, rew, done, _ = env.step(action.numpy())
-
             rews += [rew]
             obs.append(ob)
             behv.extend(_get_pos(env.unwrapped))
@@ -91,11 +90,11 @@ def multi_agent_gym_runner(policies: List[torch.nn.Module],
 
 
 def _get_pos(env):
-    if env.spec.id[:-3] in ["AntMaze", "AntPush", "AntFall"]:  # hrl ant env
-        return env.wrapped_env.get_body_com("torso")[:3]
+    # if env.spec.id[:-3] in ["AntMaze", "AntPush", "AntFall"]:  # hrl ant env
+    #     return env.wrapped_env.get_body_com("torso")[:3]
 
     if BULLET_ENV_SUFFIX in env.spec.id:  # bullet env
-        return env.robot_body.get_pose()[:3]
+        return env.robot.body_xyz[:3]
     else:  # mujoco env
         model = env.model
         mass = np.reshape(model.body_mass, (-1, 1))

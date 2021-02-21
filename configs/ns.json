@@ -1,7 +1,7 @@
 {
   "env": {
     "name": "AntMaze-v0",
-    "max_steps": 2000
+    "max_steps": 10000
   },
   "noise": {
     "tbl_size": 250000000,
@@ -25,7 +25,7 @@
     "ob_clip": 5
   },
   "general": {
-    "name": "ns",
+    "name": "ns_long",
     "gens": 5000,
     "policies_per_gen": 4800,
     "eps_per_policy": 1,

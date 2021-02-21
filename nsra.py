@@ -1,3 +1,4 @@
+import os
 import random
 from os import path
 from typing import List, Callable, Optional, Tuple
@@ -92,7 +93,7 @@ def main(cfg: Munch):
         """Reward function"""
         save_obs = rs.random() < cfg.policy.save_obs_chance
         rews, behv, obs, steps = gym_runner.run_model(model, env, cfg.env.max_steps, rs if use_ac_noise else None)
-        return NSRResult(rews, behv, obs if save_obs else np.array([np.zeros(env.observation_space.shape)]), steps,
+        return NSRResult(rews, behv[-3:], obs if save_obs else np.array([np.zeros(env.observation_space.shape)]), steps,
                          archive, cfg.novelty.k)
 
     # init population
@@ -129,8 +130,7 @@ def main(cfg: Munch):
         for policy in population:
             policy.update_obstat(gen_obstat)  # shared obstat
 
-        # sharing result and obstat
-        tr = comm.scatter([tr] * comm.size)
+        tr = comm.scatter([tr] * comm.size)  # sharing result
         # updating the weighting for choosing the next policy to be evaluated
         behv = comm.scatter([mean_behv(population[idx], ns_fn, cfg.novelty.rollouts)] * comm.size)
         nov = comm.scatter([novelty(behv, archive, cfg.novelty.k)] * comm.size)
@@ -153,6 +153,11 @@ def main(cfg: Munch):
             best_dist = max(dist, best_dist)
             population[idx].save(path.join('saved', full_name, 'weights'), str(gen))
             reporter.print(f'saving policy with rew:{rew:0.2f} and dist:{dist:0.2f}')
+
+            archive_path = path.join('saved', full_name, 'archives')
+            if not path.exists(archive_path):
+                os.makedirs(archive_path)
+            np.save(path.join(archive_path, f'{gen}.np'), archive)
 
         reporter.end_gen()
 

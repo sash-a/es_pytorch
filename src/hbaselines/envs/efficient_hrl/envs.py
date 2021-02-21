@@ -490,6 +490,7 @@ class AntMaze(UniversalAntMazeEnv):
     """
 
     def __init__(self,
+                 horizon=2000,
                  use_contexts=False,
                  random_contexts=False,
                  context_range=None,
@@ -534,6 +535,7 @@ class AntMaze(UniversalAntMazeEnv):
             )
 
         super(AntMaze, self).__init__(
+            horizon=horizon,
             maze_id=maze_id,
             contextual_reward=contextual_reward,
             use_contexts=use_contexts,
