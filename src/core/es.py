@@ -5,8 +5,6 @@ from typing import List, Tuple
 
 import gym
 import numpy as np
-# noinspection PyUnresolvedReferences
-import pybullet_envs
 from mpi4py import MPI
 from numpy import ndarray
 from numpy.random import RandomState

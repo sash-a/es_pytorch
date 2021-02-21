@@ -4,8 +4,6 @@ import gym
 import numpy as np
 import torch
 
-# noinspection PyUnresolvedReferences
-import src.hbaselines.envs
 from src.gym.unity import UnityGymWrapper
 
 BULLET_ENV_SUFFIX = 'BulletEnv'

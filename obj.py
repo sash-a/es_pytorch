@@ -9,7 +9,6 @@ from mpi4py import MPI
 import src.core.es as es
 from src.core.noisetable import NoiseTable
 from src.core.policy import Policy
-# from src.envs.ant_maze.ant_maze_env import AntMazeBulletEnv
 from src.gym import gym_runner
 from src.gym.training_result import TrainingResult, RewardResult
 from src.nn.nn import FeedForward, BaseNet
