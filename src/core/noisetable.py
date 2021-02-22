@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from typing import Tuple, Optional
 
+import gym
 import numpy as np
+from gym.utils.seeding import _int_list_from_bigint
 from mpi4py import MPI
 
 from src.utils.reporters import Reporter
@@ -56,7 +58,8 @@ class NoiseTable:
 
     @staticmethod
     def make_noise(size: int, seed=None) -> np.ndarray:
-        return np.random.RandomState(seed).randn(size).astype(np.float32)
+        rs, _ = gym.utils.seeding.np_random(seed)
+        return rs.randn(size).astype(np.float32)
 
     @staticmethod
     def create_shared(global_comm: MPI.Comm, size: int, n_params: int, reporter: Optional[Reporter] = None,

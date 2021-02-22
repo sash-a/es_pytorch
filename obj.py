@@ -45,7 +45,7 @@ def main(cfg):
         policy: Policy = Policy(nn, cfg, Adam)
     # optim: Optimizer = Adam(policy, cfg.policy.lr)
 
-    nt: NoiseTable = NoiseTable.create_shared(comm, cfg.noise.tbl_size, len(policy), reporter, cfg.general.seed)
+    nt: NoiseTable = NoiseTable.create_shared(comm, cfg.noise.tbl_size, len(policy), reporter, global_seed)
 
     ranker = CenteredRanker()
     if 0 < cfg.experimental.elite < 1:
