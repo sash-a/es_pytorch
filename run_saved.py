@@ -5,7 +5,7 @@ import numpy as np
 import torch
 
 from src.core.policy import Policy
-from src.gym.gym_runner import run_model, BULLET_ENV_SUFFIX
+from src.gym.gym_runner import run_model
 
 
 def run_saved_policy(policy_path: str, env: gym.Env, steps: int):
@@ -30,14 +30,11 @@ if __name__ == '__main__':
     parser.add_argument('pickle_file')
     args = parser.parse_args()
 
-    # noinspection PyUnresolvedReferences
-    import pybullet_envs
+    # # noinspection PyUnresolvedReferences
+    # import pybullet_envs
 
-    if BULLET_ENV_SUFFIX in args.env:
-        e = gym.make(args.env, render=True)
-        e.render('human')
-    else:
-        e = gym.make(args.env)
+    e = gym.make(args.env)
+    e.render('human')
 
     if args.pickle_file.endswith('.pt'):
         run_saved_pytorch(args.pickle_file, e, 2000)

@@ -1,3 +1,4 @@
+import time
 from typing import List, Tuple
 
 import gym
@@ -34,7 +35,8 @@ def run_model(model: torch.nn.Module,
             behv.extend(_get_pos(env.unwrapped))
 
             if render:
-                env.render()
+                env.render('human')
+                time.sleep(1 / 60)  # if rendering only step about 60 times per second
 
             if done:
                 break

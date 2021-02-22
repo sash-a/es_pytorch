@@ -13,7 +13,6 @@ from src.nn.obstat import ObStat
 from src.nn.optimizers import Adam
 from src.utils import utils
 from src.utils.rankers import CenteredRanker
-from src.utils.utils import generate_seed
 
 if __name__ == '__main__':
     comm: MPI.Comm = MPI.COMM_WORLD
@@ -24,8 +23,9 @@ if __name__ == '__main__':
     env: gym.Env = gym.make(cfg.env.name)
 
     # seeding; this must be done before creating the neural network so that params are deterministic across processes
-    cfg.general.seed = (generate_seed(comm) if cfg.general.seed is None else cfg.general.seed)
-    rs = utils.seed(comm, cfg.general.seed, env)
+    rs, my_seed, global_seed = utils.seed(comm, cfg.general.seed, env)
+    all_seeds = comm.alltoall([my_seed] * comm.size)  # simply for saving/viewing the seeds used on each proc
+    print(f'seeds:{all_seeds}')
 
     # initializing obstat, policy, optimizer, noise and ranker
     nn = FeedForward(cfg.policy.layer_sizes, torch.nn.Tanh(), env, cfg.policy.ac_std, cfg.policy.ob_clip)

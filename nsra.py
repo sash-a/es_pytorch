@@ -21,7 +21,6 @@ from src.utils import utils
 from src.utils.novelty import update_archive, novelty
 from src.utils.rankers import CenteredRanker, MultiObjectiveRanker
 from src.utils.reporters import LoggerReporter, ReporterSet, StdoutReporter, MLFlowReporter
-from src.utils.utils import generate_seed
 
 
 def mean_behv(policy: Policy, r_fn: Callable[[torch.nn.Module], NSResult], rollouts: int):
@@ -65,14 +64,9 @@ def nsra(cfg: Munch, reward: float, obj_w: float, best_reward: float, time_since
 
 
 def main(cfg: Munch):
+    full_name = f'{cfg.env.name}-{cfg.general.name}'
     comm: MPI.Comm = MPI.COMM_WORLD
     env: gym.Env = gym.make(cfg.env.name)
-
-    # seeding
-    cfg.general.seed = (generate_seed(comm) if cfg.general.seed is None else cfg.general.seed)
-    rs = utils.seed(comm, cfg.general.seed, env)
-
-    full_name = f'{cfg.env.name}-{cfg.general.name}'
 
     mlflow_reporter = MLFlowReporter(comm, cfg) if cfg.general.mlflow else None
     reporter = ReporterSet(
@@ -80,7 +74,10 @@ def main(cfg: Munch):
         StdoutReporter(comm),
         mlflow_reporter
     )
-    reporter.print(f'seed:{cfg.general.seed}')
+    # seeding
+    rs, my_seed, global_seed = utils.seed(comm, cfg.general.seed, env)
+    all_seeds = comm.alltoall([my_seed] * comm.size)  # simply for saving the seeds used on each proc
+    reporter.print(f'seeds:{all_seeds}')
 
     if cfg.nsr.adaptive:
         reporter.print("NSRA")

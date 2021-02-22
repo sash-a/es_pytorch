@@ -1,6 +1,6 @@
 import argparse
 import json
-from typing import Optional
+from typing import Optional, Tuple
 
 import gym
 import numpy as np
@@ -53,14 +53,23 @@ def load_config(cfg_file: str) -> Munch:
 
 
 def generate_seed(comm) -> int:
+    """Not a good method to generate a seed, rather use: gym.utils.seeding.np_random"""
     return comm.scatter([np.random.randint(0, 1000000)] * comm.size)
 
 
-def seed(comm: MPI.Comm, seed: int, env: Optional[gym.Env]) -> np.random.RandomState:
-    """Seeds torch, the env and returns a random state that is different for each MPI proc"""
-    rs = np.random.RandomState(seed + 10000 * comm.rank)  # This seed must be different on each proc
-    torch.random.manual_seed(seed)  # This seed must be the same on each proc for generating initial params
-    if env is not None:
-        env.seed(seed)
+def seed(comm: MPI.Comm, seed: list, env: Optional[gym.Env]) -> Tuple[np.random.RandomState, int, int]:
+    """Seeds torch, the env and returns the seed and a random state"""
+    if seed is not None and hasattr(seed, '__len__') and len(seed) == comm.size:
+        my_seed = seed[comm.rank]
+        rs = np.random.RandomState(my_seed)
+    else:
+        rs, my_seed = gym.utils.seeding.np_random(None)
 
-    return rs
+    global_seed = comm.scatter([my_seed] * comm.size)  # scatter root procs `my_seed` for seeding torch
+    torch.random.manual_seed(global_seed)  # This seed must be the same on each proc for generating initial params
+    if env is not None:
+        env.seed(my_seed)
+        env.action_space.seed(my_seed)
+        env.observation_space.seed(my_seed)
+
+    return rs, my_seed, global_seed

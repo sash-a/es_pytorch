@@ -32,9 +32,9 @@ def main(cfg):
     env: gym.Env = gym.make(cfg.env.name)
 
     # seeding
-    cfg.general.seed = (utils.generate_seed(comm) if cfg.general.seed is None else cfg.general.seed)
-    rs = utils.seed(comm, cfg.general.seed, env)
-    reporter.print(f'seed:{cfg.general.seed}')
+    rs, my_seed, global_seed = utils.seed(comm, cfg.general.seed, env)
+    all_seeds = comm.alltoall([my_seed] * comm.size)  # simply for saving the seeds used on each proc
+    reporter.print(f'seeds:{all_seeds}')
 
     # initializing policy, optimizer, noise and env
     if 'load' in cfg.policy:
