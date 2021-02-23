@@ -92,7 +92,7 @@ if __name__ == '__main__':
     # initializing obstat, policy, optimizer, noise and ranker
     obstats: List[ObStat] = [ObStat(env.observation_space[i].shape, 1e-2) for i in range(2)]
     neuralnets = [FeedForward(cfg.policy.layer_sizes, torch.nn.Tanh(), env, cfg.policy.ac_std, cfg.policy.ob_clip)]
-    policies: List[Policy] = [Policy(nn, cfg, Adam) for nn in neuralnets]
+    policies: List[Policy] = [Policy(nn, cfg.noise.std, Adam(len(Policy.get_flat(nn)), cfg.policy.lr)) for nn in neuralnets]
     nt: NoiseTable = NoiseTable.create_shared(comm, cfg.noise.tbl_size, len(policies[0]), None, cfg.general.seed)
     ranker = CenteredRanker()
 

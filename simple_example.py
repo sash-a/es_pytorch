@@ -29,7 +29,7 @@ if __name__ == '__main__':
 
     # initializing obstat, policy, optimizer, noise and ranker
     nn = FeedForward(cfg.policy.layer_sizes, torch.nn.Tanh(), env, cfg.policy.ac_std, cfg.policy.ob_clip)
-    policy: Policy = Policy(nn, cfg, Adam)
+    policy: Policy = Policy(nn, cfg.noise.std, Adam(len(Policy.get_flat(nn)), cfg.policy.lr))
     nt: NoiseTable = NoiseTable.create_shared(comm, cfg.noise.tbl_size, len(policy), None, cfg.general.seed)
     ranker = CenteredRanker()
 

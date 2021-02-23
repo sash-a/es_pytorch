@@ -26,8 +26,9 @@ torch.random.manual_seed({seed})
 ```
 
 ### General info
-* In order to define a policy all one needs to do is create an `nn.Module` and pass it to a `Policy`, an example of this
- can be seen in `simple_example.py`.
+* In order to define a policy create a `src.nn.nn.BaseNet` (which is a simple extension of a `torch.nn.Module`) and 
+pass it to a `Policy` along with an `src.nn.optimizers.Optimizer` and float value for the noise standard deviation, an 
+example of this can be seen in `simple_example.py`.
 * If you wish to share the noise using shared memory and MPI, then instantiate the `NoiseTable` using 
 `NoiseTable.create_shared(...)`, otherwise if you wish to use your own method of sharing noise/running 
 sequentially then simply create the noise table using its constructor and pass your noise to it like this: 

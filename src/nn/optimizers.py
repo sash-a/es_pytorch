@@ -5,21 +5,20 @@ import numpy as np
 
 
 class Optimizer(ABC):
-    def __init__(self, policy, lr: float):
-        self.policy = policy
+    def __init__(self, dim: int, lr: float):
         self.lr: float = lr
-        self.dim: int = len(policy)
+        self.dim: int = dim
         self.t: int = 0
 
     def step(self, globalg):
         """
-        Updates the flat_params of the policy
+        Returns the step to take the for the policies params
+
         :param globalg: the average of the sum of the noises weighted by the rewards they received
-        :return: the new flat_params
+        :return: the step to take the for the policies params
         """
         self.t += 1
-        self.policy.flat_params += self._compute_step(globalg)
-        return self.policy.flat_params
+        return self._compute_step(globalg)
 
     @abstractmethod
     def _compute_step(self, globalg):
@@ -27,16 +26,16 @@ class Optimizer(ABC):
 
 
 class SimpleES(Optimizer):
-    def __init__(self, policy, lr: float):
-        super().__init__(policy, lr)
+    def __init__(self, dim: int, lr: float):
+        super().__init__(dim, lr)
 
     def _compute_step(self, globalg: np.ndarray):
         return self.lr * globalg
 
 
 class SGD(Optimizer):
-    def __init__(self, policy, lr, momentum=0.9):
-        Optimizer.__init__(self, policy, lr)
+    def __init__(self, dim: int, lr: float, momentum=0.9):
+        Optimizer.__init__(self, dim, lr)
         self.v = np.zeros(self.dim, dtype=np.float32)
         self.momentum = momentum
 
@@ -46,8 +45,8 @@ class SGD(Optimizer):
 
 
 class Adam(Optimizer):
-    def __init__(self, policy, lr, beta1=0.9, beta2=0.999, epsilon=1e-08):
-        Optimizer.__init__(self, policy, lr)
+    def __init__(self, dim: int, lr: float, beta1=0.9, beta2=0.999, epsilon=1e-08):
+        Optimizer.__init__(self, dim, lr)
         self.beta1 = beta1
         self.beta2 = beta2
         self.epsilon = epsilon

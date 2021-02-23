@@ -98,7 +98,7 @@ def main(cfg: Munch):
     nns = []
     for _ in range(cfg.general.n_policies):
         nns.append(FeedForward(cfg.policy.layer_sizes, torch.nn.Tanh(), env, cfg.policy.ac_std, cfg.policy.ob_clip))
-        population.append(Policy(nns[-1], cfg, Adam))
+        population.append(Policy(nns[-1], cfg.noise.std, Adam(len(Policy.get_flat(nns[-1])), cfg.policy.lr)))
     # init optimizer and noise table
     nt: NoiseTable = NoiseTable.create_shared(comm, cfg.noise.tbl_size, len(population[0]), reporter, cfg.general.seed)
     policies_best_rewards = [-np.inf] * cfg.general.n_policies

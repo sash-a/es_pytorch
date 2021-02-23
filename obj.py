@@ -41,8 +41,7 @@ def main(cfg):
         nn: BaseNet = policy._module
     else:
         nn: BaseNet = FeedForward(cfg.policy.layer_sizes, torch.nn.Tanh(), env, cfg.policy.ac_std, cfg.policy.ob_clip)
-        policy: Policy = Policy(nn, cfg, Adam)
-    # optim: Optimizer = Adam(policy, cfg.policy.lr)
+        policy: Policy = Policy(nn, cfg.noise.std, Adam(len(Policy.get_flat(nn)), cfg.policy.lr))
 
     nt: NoiseTable = NoiseTable.create_shared(comm, cfg.noise.tbl_size, len(policy), reporter, global_seed)
 
