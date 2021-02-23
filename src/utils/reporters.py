@@ -9,7 +9,7 @@ from os import path
 from typing import Tuple, Dict
 
 import numpy as np
-from mlflow import log_params, log_metric, log_metrics, set_experiment, start_run
+from mlflow import log_params, log_metrics, set_experiment, start_run
 from mpi4py import MPI
 from munch import unmunchify, Munch
 from pandas import json_normalize
@@ -81,15 +81,8 @@ class MpiReporter(Reporter, ABC):
     def __init__(self, comm: MPI.Comm):
         self.comm = comm
 
-        self._start_time = 0
-        self.gen_time = 0
-
-        self.gen = 0
-
     def start_gen(self):
         if self.comm.rank == MpiReporter.MAIN:
-            self._start_time = time.time()
-            self.gen += 1
             self._start_gen()
 
     def log_gen(self, fits: np.ndarray, noiseless_tr: TrainingResult, policy: Policy, steps: int):
@@ -98,7 +91,6 @@ class MpiReporter(Reporter, ABC):
 
     def end_gen(self):
         if self.comm.rank == MpiReporter.MAIN:
-            self.gen_time = time.time() - self._start_time
             self._end_gen()
 
     def print(self, s: str):
@@ -130,36 +122,83 @@ class MpiReporter(Reporter, ABC):
         pass
 
 
-class StdoutReporter(MpiReporter):
+class DefaultMpiReporter(MpiReporter, ABC):
+    """Useful information logged in log gen. To use this class create a subclass and override the _log function to use
+    your printing method of choice."""
+
     def __init__(self, comm: MPI.Comm):
         super().__init__(comm)
-        if comm.rank == 0:
-            self.cum_steps = 0
+        self.gen = 0
+        self.cum_steps = 0
+        self.gen_start_time = 0
 
     def _start_gen(self):
-        print(f'\n\n'
-              f'----------------------------------------'
-              f'\ngen:{self.gen}')
+        self.gen_start_time = time.time()
+        self.print('\n\n----------------------------------------')
+        self.log({'gen': self.gen})
 
     def _log_gen(self, fits: np.ndarray, noiseless_tr: TrainingResult, policy: Policy, steps: int):
         for i, col in enumerate(fits.T):
             # Objectives are grouped by column so this finds the avg and max of each objective
-            print(f'obj {i} avg:{np.mean(col):0.2f}')
-            print(f'obj {i} max:{np.max(col):0.2f}')
+            self.log({f'avg-{i}': np.mean(col).round(2).item()})
+            self.log({f'max-{i}': np.max(col).round(2).item()})
 
-        print(f'fit:{noiseless_tr.result}')
-        dist, rew = calc_dist_rew(noiseless_tr)
         self.cum_steps += steps
+        dist, rew = calc_dist_rew(noiseless_tr)
 
-        print(f'dist:{dist}')
-        print(f'rew:{rew}')
+        self.log({'dist': dist})
+        self.log({'rew': rew})
 
-        print(f'steps:{steps}')
-        print(f'cum steps:{self.cum_steps}')
+        self.print('')
+        self.log({f'steps': steps})
+        self.log({f'cum steps': self.cum_steps})
         self.log({'n fits ranked': len(fits)})
 
     def _end_gen(self):
-        print(f'time:{self.gen_time:0.2f}')
+        self.log({'time': round(time.time() - self.gen_start_time, 2)})
+        self.gen += 1
+
+
+class DefaultMpiReporterSet(DefaultMpiReporter):
+    def __init__(self, comm: MPI.Comm, run_name, *reporters: Reporter):
+        super().__init__(comm)
+
+        self.fit_folder = path.join('saved', run_name, 'fits')
+        self.policy_folder = path.join('saved', run_name, 'weights')
+        if comm.rank == MpiReporter.MAIN:
+            if not path.exists(self.fit_folder): os.makedirs(self.fit_folder)
+            if not path.exists(self.policy_folder): os.makedirs(self.policy_folder)
+
+        self.reporters = [reporter for reporter in reporters if reporter is not None]
+
+        self.best_rew = 0
+        self.best_dist = 0
+
+    def _log_gen(self, fits: np.ndarray, noiseless_tr: TrainingResult, policy: Policy, steps: int):
+        super()._log_gen(fits, noiseless_tr, policy, steps)
+        if self.comm.rank == MpiReporter.MAIN:  # saving policy and all fits to files
+            dist, rew = calc_dist_rew(noiseless_tr)
+            save_policy = (rew > self.best_rew or dist > self.best_dist)
+            self.best_rew = max(rew, self.best_rew)
+            self.best_dist = max(dist, self.best_dist)
+            if save_policy:  # Saving policy if it obtained a better reward or distance
+                policy.save(self.policy_folder, str(self.gen))
+                self.print(f'saving policy with rew:{rew:0.2f} and dist:{dist:0.2f}')
+
+            np.save(path.join(f'{self.fit_folder}', f'{self.gen}.np'), fits)
+
+    def _log(self, d: Dict[str, float]):
+        for reporter in self.reporters:
+            reporter.log(d)
+
+    def _print(self, s: str):
+        for reporter in self.reporters:
+            reporter.print(s)
+
+
+class StdoutReporter(DefaultMpiReporter):
+    def __init__(self, comm: MPI.Comm):
+        super().__init__(comm)
 
     def _print(self, s: str):
         print(s)
@@ -169,47 +208,18 @@ class StdoutReporter(MpiReporter):
             print(f'{k}:{v}')
 
 
-class LoggerReporter(MpiReporter):
+class LoggerReporter(DefaultMpiReporter):
     def __init__(self, comm: MPI.Comm, log_folder=None):
         super().__init__(comm)
 
         if comm.rank == MpiReporter.MAIN:
-            self.fit_folder = path.join('saved', log_folder, 'fits')
-            if not path.exists(self.fit_folder):
-                os.makedirs(self.fit_folder)
-
             if log_folder is None:
                 log_folder = datetime.now().strftime('es__%d_%m_%y__%H_%M_%S')
+
+            if not path.exists(path.join('saved', log_folder)): os.makedirs(path.join('saved', log_folder))
+
             logging.basicConfig(filename=path.join('saved', log_folder, 'es.log'), level=logging.DEBUG)
             logging.info('initialized logger')
-
-            self.gen = 0
-            self.cum_steps = 0
-
-    def _start_gen(self):
-        logging.info(f'gen:{self.gen}')
-
-    def _log_gen(self, fits: np.ndarray, noiseless_tr: TrainingResult, policy: Policy, steps: int):
-        for i, col in enumerate(fits.T):
-            # Objectives are grouped by column so this finds the avg and max of each objective
-            logging.info(f'obj {i} avg:{np.mean(col):0.2f}')
-            logging.info(f'obj {i} max:{np.max(col):0.2f}')
-
-        logging.info(f'fit:{noiseless_tr.result}')
-        dist, rew = calc_dist_rew(noiseless_tr)
-        self.cum_steps += steps
-
-        logging.info(f'dist:{dist}')
-        logging.info(f'rew:{rew}')
-
-        logging.info(f'steps:{steps}')
-        logging.info(f'cum steps:{self.cum_steps}')
-
-        self.log({'n fits ranked': len(fits)})
-        np.save(f'{self.fit_folder}/{self.gen}', fits)
-
-    def _end_gen(self):
-        logging.info(f'time:{self.gen_time:0.2f}')
 
     def _print(self, s: str):
         logging.info(s)
@@ -219,7 +229,7 @@ class LoggerReporter(MpiReporter):
             logging.info(f'{k}:{v}')
 
 
-class MLFlowReporter(MpiReporter):
+class MLFlowReporter(DefaultMpiReporter):
     def __init__(self, comm: MPI.Comm, cfg: Munch):
         super().__init__(comm)
         if comm.rank == MpiReporter.MAIN:
@@ -227,7 +237,6 @@ class MLFlowReporter(MpiReporter):
             start_run(run_name=cfg.general.name)
             log_params(json_normalize(unmunchify(cfg)).to_dict(orient='records')[0])
 
-            self.cum_steps = 0
             self.gens = [0] * cfg.general.n_policies
 
             self.run_ids = []
@@ -248,23 +257,6 @@ class MLFlowReporter(MpiReporter):
 
     def _start_gen(self):
         pass
-
-    def _log_gen(self, fits: np.ndarray, noiseless_tr: TrainingResult, policy: Policy, steps: int):
-        with self.start_active_run():
-            for i, col in enumerate(fits.T):
-                # Objectives are grouped by column so this finds the avg and max of each objective
-                log_metric(f'obj {i} avg', np.mean(col), self.gens[self.active_run])
-                log_metric(f'obj {i} max', np.max(col), self.gens[self.active_run])
-
-            dist, rew = calc_dist_rew(noiseless_tr)
-            self.cum_steps += steps
-
-            log_metric('dist', dist, self.gens[self.active_run])
-            log_metric('rew', rew, self.gens[self.active_run])
-            log_metric(f'steps', steps, self.gens[self.active_run])
-            log_metric(f'cum steps', self.cum_steps, self.gens[self.active_run])
-            log_metric('time', self.gen_time, self.gens[self.active_run])
-            self.log({'n fits ranked': len(fits)})
 
     def _end_gen(self):
         self.gens[self.active_run] += 1

@@ -20,7 +20,7 @@ from src.nn.optimizers import Adam
 from src.utils import utils
 from src.utils.novelty import update_archive, novelty
 from src.utils.rankers import CenteredRanker, MultiObjectiveRanker
-from src.utils.reporters import LoggerReporter, ReporterSet, StdoutReporter, MLFlowReporter
+from src.utils.reporters import LoggerReporter, StdoutReporter, MLFlowReporter, DefaultMpiReporterSet
 
 
 def mean_behv(policy: Policy, r_fn: Callable[[torch.nn.Module], NSResult], rollouts: int):
@@ -69,11 +69,11 @@ def main(cfg: Munch):
     env: gym.Env = gym.make(cfg.env.name)
 
     mlflow_reporter = MLFlowReporter(comm, cfg) if cfg.general.mlflow else None
-    reporter = ReporterSet(
-        LoggerReporter(comm, full_name),
-        StdoutReporter(comm),
-        mlflow_reporter
-    )
+    reporter = DefaultMpiReporterSet(comm, full_name,
+                                     LoggerReporter(comm, full_name),
+                                     StdoutReporter(comm),
+                                     mlflow_reporter)
+
     # seeding
     rs, my_seed, global_seed = utils.seed(comm, cfg.general.seed, env)
     all_seeds = comm.alltoall([my_seed] * comm.size)  # simply for saving the seeds used on each proc
@@ -148,9 +148,8 @@ def main(cfg: Munch):
         if (rew > best_rew or dist > best_dist) and comm.rank == 0:
             best_rew = max(rew, best_rew)
             best_dist = max(dist, best_dist)
-            population[idx].save(path.join('saved', full_name, 'weights'), str(gen))
-            reporter.print(f'saving policy with rew:{rew:0.2f} and dist:{dist:0.2f}')
 
+            # Only need to save the archive, policy is saved by DefaultMpiReportedSet
             archive_path = path.join('saved', full_name, 'archives')
             if not path.exists(archive_path):
                 os.makedirs(archive_path)
