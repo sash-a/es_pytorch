@@ -97,5 +97,5 @@ def _share_results(comm: MPI.Comm,
 
 def approx_grad(policy: Policy, ranker: Ranker, nt: NoiseTable, params: ndarray, batch_size: int, l2coeff: float):
     """Approximating gradient and update policy params"""
-    grad = scale_noise(ranker.ranked_fits, ranker.noise_inds, nt, batch_size) / ranker.n_fits_ranked
+    grad = scale_noise(ranker.ranked_fits, ranker.noise_inds, nt, len(policy), batch_size) / ranker.n_fits_ranked
     policy.optim_step(l2coeff * params - grad)
