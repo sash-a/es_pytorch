@@ -31,6 +31,7 @@ def step(cfg,
          reporter: Reporter = StdoutReporter(MPI.COMM_WORLD)) -> [TrainingResult, ObStat]:
     """
     Runs a single generation of ES
+
     :param fit_fn: Evaluates the policy returns a :class:`TrainingResult`
     :param ranker: A subclass of :class:`Ranker` that is able to rank the fitnesses
     :returns: :class:`TrainingResult` of the noiseless policy at that generation
