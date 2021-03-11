@@ -13,6 +13,7 @@ from src.nn.obstat import ObStat
 from src.nn.optimizers import Adam
 from src.utils import utils
 from src.utils.rankers import CenteredRanker
+from src.utils.reporters import DefaultMpiReporterSet, LoggerReporter, StdoutReporter
 
 if __name__ == '__main__':
     comm: MPI.Comm = MPI.COMM_WORLD
@@ -20,12 +21,16 @@ if __name__ == '__main__':
     cfg_file = utils.parse_args()
     cfg = utils.load_config(cfg_file)
 
+    full_name = f'{cfg.env.name}-{cfg.general.name}'
+
+    reporter = DefaultMpiReporterSet(comm, full_name, LoggerReporter(comm, full_name), StdoutReporter(comm))
+
     env: gym.Env = gym.make(cfg.env.name)
 
     # seeding; this must be done before creating the neural network so that params are deterministic across processes
     rs, my_seed, global_seed = utils.seed(comm, cfg.general.seed, env)
     all_seeds = comm.alltoall([my_seed] * comm.size)  # simply for saving/viewing the seeds used on each proc
-    print(f'seeds:{all_seeds}')
+    reporter.print(f'seeds:{all_seeds}')
 
     # initializing obstat, policy, optimizer, noise and ranker
     nn = FeedForward(cfg.policy.layer_sizes, torch.nn.Tanh(), env, cfg.policy.ac_std, cfg.policy.ob_clip)
@@ -45,7 +50,7 @@ if __name__ == '__main__':
     assert cfg.general.policies_per_gen % comm.size == 0 and (cfg.general.policies_per_gen / comm.size) % 2 == 0
     eps_per_proc = int((cfg.general.policies_per_gen / comm.size) / 2)
     for gen in range(cfg.general.gens):  # main loop
-        if comm.rank == 0: print(f'Generation:{gen}')  # only print on one process
+        if comm.rank == 0: reporter.print(f'Generation:{gen}')  # only print on one process
 
         # the block below is encapsulated in es.step(...), but this is more flexible. Example use can be seen in obj.py
         gen_obstat = ObStat(env.observation_space.shape, 0)  # for normalizing the observation space
@@ -75,8 +80,8 @@ if __name__ == '__main__':
         es.approx_grad(policy, ranker, nt, policy.flat_params, cfg.general.batch_size, cfg.policy.l2coeff)
 
         if comm.rank == 0:
-            print(f'std:{policy.std}')
-            print(f'max:{np.max(np.concatenate((pos_fits, neg_fits))[:, 0])}\n'
+            reporter.print(f'std:{policy.std}')
+            reporter.print(f'max:{np.max(np.concatenate((pos_fits, neg_fits))[:, 0])}\n'
                   f'avg:{np.mean(np.concatenate((pos_fits, neg_fits))[:, 0])}\n'
                   f'min:{np.min(np.concatenate((pos_fits, neg_fits))[:, 0])}\n\n')
 
