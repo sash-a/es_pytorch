@@ -51,8 +51,11 @@ if __name__ == '__main__':
         gen_obstat = ObStat(env.observation_space.shape, 0)  # for normalizing the observation space
 
         # testing two different stds and using the one which performs better on average
-        std_hi = policy.std * tau
-        std_lo = policy.std / tau
+        mod_frac = np.exp(1 / 100 * rs.uniform()) if comm.rank == 0 else None
+        mod_frac = comm.scatter(mod_frac)
+
+        std_hi = policy.std * mod_frac  # tau
+        std_lo = policy.std / mod_frac  # tau
         policy.std = std_hi
         pos_fits_hi, neg_fits_hi, inds_hi, _ = es.test_params(comm, eps_per_proc, policy, nt, gen_obstat, r_fn, rs)
         policy.std = std_lo
