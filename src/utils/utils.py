@@ -57,7 +57,7 @@ def generate_seed(comm) -> int:
     return comm.scatter([np.random.randint(0, 1000000)] * comm.size)
 
 
-def seed(comm: MPI.Comm, seed: list, env: Optional[gym.Env]) -> Tuple[np.random.RandomState, int, int]:
+def seed(comm: MPI.Comm, seed: list, env: Optional[gym.Env] = None) -> Tuple[np.random.RandomState, int, int]:
     """Seeds torch, the env and returns the seed and a random state"""
     if seed is not None and hasattr(seed, '__len__') and len(seed) == comm.size:
         my_seed = seed[comm.rank]
