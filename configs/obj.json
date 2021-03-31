@@ -1,7 +1,7 @@
 {
   "env": {
-    "name": "ml-agents-release_12/envs/soccer_ones/headfull/soccer_ones.x86_64",
-    "max_steps": 2000
+    "name": "AntMuJoCoEnv-v0",
+    "max_steps": 1000
   },
   "noise": {
     "tbl_size": 250000000,
@@ -11,6 +11,7 @@
   },
   "policy": {
     "layer_sizes": [
+      256,
       256,
       256
     ],
@@ -31,10 +32,10 @@
     "elite": 1
   },
   "general": {
-    "name": "obj_acstd_multiep",
-    "gens": 300,
-    "policies_per_gen": 12000,
-    "eps_per_policy": 5,
+    "name": "rand_pos",
+    "gens": 500,
+    "policies_per_gen": 9600,
+    "eps_per_policy": 1,
     "n_policies": 1,
     "batch_size": 500,
     "seed": null,
