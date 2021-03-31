@@ -15,8 +15,8 @@
       256,
       256
     ],
-    "ac_std": 0.05,
-    "ac_std_decay": 0.995,
+    "ac_std": 0.01,
+    "ac_std_decay": 1,
     "l2coeff": 0.005,
     "lr": 0.01,
     "lr_limit": 0.001,
