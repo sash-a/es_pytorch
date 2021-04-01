@@ -22,6 +22,15 @@ from src.utils.rankers import CenteredRanker
 from src.utils.reporters import DefaultMpiReporterSet, StdoutReporter, LoggerReporter
 
 
+def gen_goal():
+    mn = 0  # 0 for goal to be to the front or sides of agent, -1 for allowing goal pos to be behind agent
+    g = (rs.uniform(mn, 1), rs.uniform(mn, 1))
+    while np.linalg.norm(g) < 0.25:
+        g = (rs.uniform(mn, 1), rs.uniform(mn, 1))
+
+    return g
+
+
 class PrimFF(BaseNet):
     def __init__(self, layer_sizes: List[int], activation: nn.Module, obs_shape, ac_std: float, ob_clip=5):
         layers = []
@@ -50,6 +59,7 @@ def run_model(model: PrimFF,
               env: gym.Env,
               max_steps: int,
               rs: np.random.RandomState = None,
+              goal_normed=torch.tensor((1, 0)),
               render: bool = False) -> \
         Tuple[List[float], List[float], np.ndarray, int]:
     """
@@ -60,21 +70,14 @@ def run_model(model: PrimFF,
     rews = []
     obs = []
 
-    if rs is not None:
-        goal = torch.tensor((rs.uniform(-1, 1), rs.uniform(-1, 1)))  # normalized goal
-        goal_pos = goal.numpy() * 7
-    else:
-        rs = np.random.RandomState()
-        goal = torch.tensor((rs.uniform(-1, 1), rs.uniform(-1, 1)))  # normalized goal
-        goal_pos = goal.numpy() * 7
-        rs = None
+    goal_pos = goal_normed.numpy() * 7
 
     with torch.no_grad():
         ob = env.reset()
         for step in range(max_steps):
             ob = torch.from_numpy(ob).float()
 
-            action = model(ob, rs=rs, goal=goal)
+            action = model(ob, rs=rs, goal=goal_normed)
             ob, rew, done, _ = env.step(action.numpy())
 
             pos = env.unwrapped.parts['torso'].get_position()
@@ -120,10 +123,12 @@ if __name__ == '__main__':
     nt: NoiseTable = NoiseTable.create_shared(comm, cfg.noise.tbl_size, len(policy), None, cfg.general.seed)
     ranker = CenteredRanker()
 
+    goal = (1, 0)
+
 
     def r_fn(model: PrimFF, use_ac_noise=True) -> TrainingResult:
         save_obs = (rs.random() if rs is not None else np.random.random()) < cfg.policy.save_obs_chance
-        rews, behv, obs, steps = run_model(model, env, 1000, rs if use_ac_noise else None)
+        rews, behv, obs, steps = run_model(model, env, 1000, rs if use_ac_noise else None, goal)
         return RewardResult(rews, behv, obs if save_obs else np.array([np.zeros(env.observation_space.shape)]), steps)
 
 
@@ -131,6 +136,9 @@ if __name__ == '__main__':
     eps_per_proc = int((cfg.general.policies_per_gen / comm.size) / 2)
     for gen in range(cfg.general.gens):  # main loop
         reporter.start_gen()
+        goal = torch.tensor(comm.scatter([gen_goal()] * comm.size if comm.rank == 0 else None))
+
+        reporter.print(f'goal:{goal}')
         tr, gen_obstat = es.step(cfg, comm, policy, nt, env, r_fn, rs, ranker, reporter)
         policy.update_obstat(gen_obstat)
         reporter.end_gen()
