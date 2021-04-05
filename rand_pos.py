@@ -22,7 +22,7 @@ from src.utils.rankers import CenteredRanker
 from src.utils.reporters import DefaultMpiReporterSet, StdoutReporter, LoggerReporter
 
 
-def gen_goal():
+def gen_goal(rs):
     mn = 0  # 0 for goal to be to the front or sides of agent, -1 for allowing goal pos to be behind agent
     g = (rs.uniform(mn, 1), rs.uniform(mn, 1))
     while np.linalg.norm(g) < 0.25:
@@ -71,6 +71,9 @@ def run_model(model: PrimFF,
     obs = []
 
     goal_pos = goal_normed.numpy() * 7
+    sq_dist = np.linalg.norm(goal_pos) ** 2
+    if render:
+        env.render()
 
     with torch.no_grad():
         ob = env.reset()
@@ -81,18 +84,22 @@ def run_model(model: PrimFF,
             ob, rew, done, _ = env.step(action.numpy())
 
             pos = env.unwrapped.parts['torso'].get_position()
+            pos_rew = np.dot(pos[:2], goal_pos) / sq_dist
+            # angle_rew =
+            rews += [pos_rew]
 
             obs.append(ob)
             behv.extend(pos)
 
             if render:
                 env.render('human')
-                time.sleep(1 / 60)  # if rendering only step about 60 times per second
+                time.sleep(1 / 100)  # if rendering only step about 60 times per second
+                env.stadium_scene._p.addUserDebugLine(pos, [goal_pos[0], goal_pos[1], 0], lifeTime=0.1)
 
             if done:
                 break
 
-        rews += [-((pos[0] - goal_pos[0]) ** 2 + (pos[1] - goal_pos[1]) ** 2)]
+        # rews += [-((pos[0] - goal_pos[0]) ** 2 + (pos[1] - goal_pos[1]) ** 2)]
 
     behv += behv[-3:] * (max_steps - int(len(behv) / 3))  # extending the behaviour vector to have `max_steps` elements
     return rews, behv, np.array(obs), step
@@ -136,12 +143,12 @@ if __name__ == '__main__':
     eps_per_proc = int((cfg.general.policies_per_gen / comm.size) / 2)
     for gen in range(cfg.general.gens):  # main loop
         reporter.start_gen()
-        goal = torch.tensor(comm.scatter([gen_goal()] * comm.size if comm.rank == 0 else None))
+        goal = torch.tensor(comm.scatter([gen_goal(rs)] * comm.size if comm.rank == 0 else None))
 
         reporter.print(f'goal:{goal}')
         tr, gen_obstat = es.step(cfg, comm, policy, nt, env, r_fn, rs, ranker, reporter)
         policy.update_obstat(gen_obstat)
         reporter.end_gen()
 
-        if gen % 10 and comm.rank == 0:  # save policy every 10 generations
+        if gen % 10 == 0 and comm.rank == 0:  # save policy every 10 generations
             policy.save(f'saved/{cfg.general.name}', str(gen))

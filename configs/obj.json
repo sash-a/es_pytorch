@@ -32,7 +32,7 @@
     "elite": 1
   },
   "general": {
-    "name": "rand_pos",
+    "name": "rp-newrew",
     "gens": 500,
     "policies_per_gen": 9600,
     "eps_per_policy": 1,
