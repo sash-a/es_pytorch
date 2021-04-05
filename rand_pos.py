@@ -85,6 +85,8 @@ def run_model(model: PrimFF,
 
             pos = env.unwrapped.parts['torso'].get_position()
             pos_rew = np.dot(pos[:2], goal_pos) / sq_dist
+            if pos_rew > 1:
+                pos_rew = -pos_rew + 2  # if walked further than the line, start penalizing
             # angle_rew =
             rews += [pos_rew]
 
