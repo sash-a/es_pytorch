@@ -151,4 +151,4 @@ if __name__ == '__main__':
         reporter.end_gen()
 
         if gen % 10 == 0 and comm.rank == 0:  # save policy every 10 generations
-            policy.save(f'saved/{cfg.general.name}', str(gen))
+            policy.save(f'saved/{run_name}/weights/', str(gen))
