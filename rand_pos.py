@@ -114,10 +114,10 @@ def run_model(model: PrimFF,
                 env.render('human')
                 time.sleep(1 / 100)  # if rendering only step about 60 times per second
                 # robot to goal
-                env.stadium_scene._p.addUserDebugLine(pos, [goal_pos[0], goal_pos[1], 0], lifeTime=0.1)
+                env.stadium_scene._p.addUserDebugLine(pos, [goal_pos[0], goal_pos[1], pos[2]], lifeTime=0.1)
                 # robot dir
-                point = [10, m * 10 + c, 0]
-                env.stadium_scene._p.addUserDebugLine([x, y, 0], point, lifeTime=0.1, lineColorRGB=[0, 1, 0])
+                point = [10, m * 10 + c, pos[2]]
+                env.stadium_scene._p.addUserDebugLine([x, y, pos[2]], point, lifeTime=0.1, lineColorRGB=[0, 1, 0])
 
             if done:
                 break
