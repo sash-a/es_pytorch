@@ -22,6 +22,10 @@ from src.utils.rankers import CenteredRanker
 from src.utils.reporters import DefaultMpiReporterSet, StdoutReporter, LoggerReporter
 
 
+def unit_vec(v: np.ndarray):
+    return v / np.linalg.norm(v)
+
+
 def gen_goal(rs):
     mn = 0  # 0 for goal to be to the front or sides of agent, -1 for allowing goal pos to be behind agent
     g = (rs.uniform(mn, 1), rs.uniform(mn, 1))
@@ -87,8 +91,21 @@ def run_model(model: PrimFF,
             pos_rew = np.dot(pos[:2], goal_pos) / sq_dist
             if pos_rew > 1:
                 pos_rew = -pos_rew + 2  # if walked further than the line, start penalizing
-            # angle_rew =
-            rews += [pos_rew]
+
+            yaw = env.robot_body.pose().rpy()[2]
+            x, y, z = env.robot_body.pose().xyz()
+            m = np.tan(yaw)
+            c = y - m * x
+
+            forward = unit_vec(np.array([1, m + c]) - pos[:2])
+            rob_to_goal = unit_vec(np.array(goal_pos) - pos[:2])
+            angle_rew = np.dot(rob_to_goal, forward)
+            # debug for angle reward
+            # env.stadium_scene._p.addUserDebugLine([0, 0, 0], forward.tolist() + [0], lifeTime=0.1,
+            #                                       lineColorRGB=[1, 0, 0])
+            # env.stadium_scene._p.addUserDebugLine([0, 0, 0], rob_to_goal.tolist() + [0], lifeTime=0.1,
+            #                                       lineColorRGB=[0, 0, 1])
+            rews += [pos_rew + angle_rew]
 
             obs.append(ob)
             behv.extend(pos)
@@ -96,7 +113,11 @@ def run_model(model: PrimFF,
             if render:
                 env.render('human')
                 time.sleep(1 / 100)  # if rendering only step about 60 times per second
+                # robot to goal
                 env.stadium_scene._p.addUserDebugLine(pos, [goal_pos[0], goal_pos[1], 0], lifeTime=0.1)
+                # robot dir
+                point = [10, m * 10 + c, 0]
+                env.stadium_scene._p.addUserDebugLine([x, y, 0], point, lifeTime=0.1, lineColorRGB=[0, 1, 0])
 
             if done:
                 break
