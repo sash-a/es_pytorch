@@ -26,8 +26,8 @@ def unit_vec(v: np.ndarray):
     return v / np.linalg.norm(v)
 
 
-def gen_goal(rs):
-    mn = 0  # 0 for goal to be to the front or sides of agent, -1 for allowing goal pos to be behind agent
+def gen_goal(rs, mn=0):
+    # mn: 0 for goal to be to the front or sides of agent, -1 for allowing goal pos to be behind agent
     g = (rs.uniform(mn, 1), rs.uniform(mn, 1))
     while np.linalg.norm(g) < 0.25:
         g = (rs.uniform(mn, 1), rs.uniform(mn, 1))
@@ -59,6 +59,24 @@ class PrimFF(BaseNet):
         return a
 
 
+def get_angular_reward(e: gym.Env, pos: np.ndarray, goal_pos: np.ndarray) -> float:
+    yaw = e.robot_body.pose().rpy()[2]
+    x, y, z = e.robot_body.pose().xyz()
+    m = np.tan(yaw)
+    c = y - m * x
+
+    forward = unit_vec(np.array([1, m + c]) - pos[:2])
+    rob_to_goal = unit_vec(goal_pos - pos[:2])
+    angle_rew = np.dot(rob_to_goal, forward)
+    # debug for angle reward
+    e.stadium_scene._p.addUserDebugLine([0, 0, 0], forward.tolist() + [0], lifeTime=0.1,
+                                        lineColorRGB=[1, 0, 0])
+    e.stadium_scene._p.addUserDebugLine([0, 0, 0], rob_to_goal.tolist() + [0], lifeTime=0.1,
+                                        lineColorRGB=[0, 0, 1])
+
+    return angle_rew
+
+
 def run_model(model: PrimFF,
               env: gym.Env,
               max_steps: int,
@@ -75,6 +93,7 @@ def run_model(model: PrimFF,
     obs = []
 
     goal_pos = goal_normed.numpy() * 7
+    env.walk_target_x, env.walk_target_y = goal_pos
     sq_dist = np.linalg.norm(goal_pos) ** 2
     if render:
         env.render()
@@ -88,24 +107,13 @@ def run_model(model: PrimFF,
             ob, rew, done, _ = env.step(action.numpy())
 
             pos = env.unwrapped.parts['torso'].get_position()
-            pos_rew = np.dot(pos[:2], goal_pos) / sq_dist
-            if pos_rew > 1:
-                pos_rew = -pos_rew + 2  # if walked further than the line, start penalizing
+            path_rew = np.dot(pos[:2], goal_pos) / sq_dist
+            if path_rew > 1:
+                path_rew = -path_rew + 2  # if walked further than the line, start penalizing
+            path_rew = (path_rew + 1) / 2  # only positive
 
-            yaw = env.robot_body.pose().rpy()[2]
-            x, y, z = env.robot_body.pose().xyz()
-            m = np.tan(yaw)
-            c = y - m * x
-
-            forward = unit_vec(np.array([1, m + c]) - pos[:2])
-            rob_to_goal = unit_vec(np.array(goal_pos) - pos[:2])
-            angle_rew = np.dot(rob_to_goal, forward)
-            # debug for angle reward
-            # env.stadium_scene._p.addUserDebugLine([0, 0, 0], forward.tolist() + [0], lifeTime=0.1,
-            #                                       lineColorRGB=[1, 0, 0])
-            # env.stadium_scene._p.addUserDebugLine([0, 0, 0], rob_to_goal.tolist() + [0], lifeTime=0.1,
-            #                                       lineColorRGB=[0, 0, 1])
-            rews += [pos_rew + angle_rew]
+            angle_rew = 0  # get_angular_reward(env, pos, goal_pos)
+            rews += [path_rew + angle_rew]
 
             obs.append(ob)
             behv.extend(pos)
@@ -116,8 +124,8 @@ def run_model(model: PrimFF,
                 # robot to goal
                 env.stadium_scene._p.addUserDebugLine(pos, [goal_pos[0], goal_pos[1], pos[2]], lifeTime=0.1)
                 # robot dir
-                point = [10, m * 10 + c, pos[2]]
-                env.stadium_scene._p.addUserDebugLine([x, y, pos[2]], point, lifeTime=0.1, lineColorRGB=[0, 1, 0])
+                # point = [10, m * 10 + c, pos[2]]
+                # env.stadium_scene._p.addUserDebugLine([x, y, pos[2]], point, lifeTime=0.1, lineColorRGB=[0, 1, 0])
 
             if done:
                 break
@@ -161,6 +169,11 @@ if __name__ == '__main__':
         rews, behv, obs, steps = run_model(model, env, 1000, rs if use_ac_noise else None, goal)
         return RewardResult(rews, behv, obs if save_obs else np.array([np.zeros(env.observation_space.shape)]), steps)
 
+
+    env.electricity_cost = 0
+    env.stall_torque_cost = 0
+    # env.foot_collision_cost = 0
+    # env.joints_at_limit_cost = 0
 
     assert cfg.general.policies_per_gen % comm.size == 0 and (cfg.general.policies_per_gen / comm.size) % 2 == 0
     eps_per_proc = int((cfg.general.policies_per_gen / comm.size) / 2)
