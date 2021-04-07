@@ -22,7 +22,7 @@ def run_saved_pytorch(policy_path: str, env: gym.Env, steps: int, rand_pos):
 def run_saved(model: torch.nn.Module, env, steps, rand_pos):
     while True:
         if rand_pos:
-            goal = torch.tensor(rp.gen_goal(np.random.RandomState(), -1))
+            goal = torch.tensor(rp.gen_goal(np.random.RandomState(), 0))
             print(f'goal:{goal}')
             r, d, _, s = rp.run_model(model, env, steps, render=True, goal_normed=goal)
         else:

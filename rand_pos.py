@@ -40,7 +40,6 @@ class PrimFF(BaseNet):
         layers = []
         for in_size, out_size in zip(layer_sizes[:-1], layer_sizes[1:]):
             layers += [nn.Linear(in_size, out_size), activation]
-
         super().__init__(layers, obs_shape, ob_clip)
 
         self._action_std = ac_std
@@ -104,7 +103,7 @@ def run_model(model: PrimFF,
             ob = torch.from_numpy(ob).float()
 
             action = model(ob, rs=rs, goal=goal_normed)
-            ob, rew, done, _ = env.step(action.numpy())
+            ob, env_rew, done, _ = env.step(action.numpy())
 
             pos = env.unwrapped.parts['torso'].get_position()
             path_rew = np.dot(pos[:2], goal_pos) / sq_dist
@@ -112,8 +111,9 @@ def run_model(model: PrimFF,
                 path_rew = -path_rew + 2  # if walked further than the line, start penalizing
             path_rew = (path_rew + 1) / 2  # only positive
 
+            path_rew = 0
             angle_rew = 0  # get_angular_reward(env, pos, goal_pos)
-            rews += [path_rew + angle_rew]
+            rews += [path_rew + angle_rew + env_rew]
 
             obs.append(ob)
             behv.extend(pos)
