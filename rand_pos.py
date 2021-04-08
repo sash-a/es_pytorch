@@ -93,13 +93,15 @@ def run_model(model: PrimFF,
 
     goal_pos = goal_normed.numpy() * 7
     env.walk_target_x, env.walk_target_y = goal_pos
+    env.robot.walk_target_x, env.robot.walk_target_y = goal_pos
+
     sq_dist = np.linalg.norm(goal_pos) ** 2
     if render:
         env.render()
 
     with torch.no_grad():
         ob = env.reset()
-        old_dist = -np.linalg.norm(env.unwrapped.parts['torso'].get_position()[:2] - goal_pos)
+        # old_dist = -np.linalg.norm(env.unwrapped.parts['torso'].get_position()[:2] - goal_pos)
 
         for step in range(max_steps):
             ob = torch.from_numpy(ob).float()
@@ -108,20 +110,18 @@ def run_model(model: PrimFF,
             ob, env_rew, done, _ = env.step(action.numpy())
 
             pos = env.unwrapped.parts['torso'].get_position()
-            path_rew = np.dot(pos[:2], goal_pos) / sq_dist
-            if path_rew > 1:
-                path_rew = -path_rew + 2  # if walked further than the line, start penalizing
-            path_rew = (path_rew + 1) / 2  # only positive
+            # path_rew = np.dot(pos[:2], goal_pos) / sq_dist
+            # if path_rew > 1:
+            #     path_rew = -path_rew + 2  # if walked further than the line, start penalizing
+            # path_rew = (path_rew + 1) / 2  # only positive
 
-            dist_to_goal = -np.linalg.norm(pos[:2] - goal_pos)
-            dist_rew = dist_to_goal - old_dist
-            old_dist = dist_to_goal
-            joints_at_limit_cost = float(env.joints_at_limit_cost * env.robot.joints_at_limit)
+            # dist_to_goal = -np.linalg.norm(pos[:2] - goal_pos)
+            # dist_rew = dist_to_goal - old_dist
+            # old_dist = dist_to_goal
+            # joints_at_limit_cost = float(env.joints_at_limit_cost * env.robot.joints_at_limit)
             path_rew = 0
             angle_rew = 0  # get_angular_reward(env, pos, goal_pos)
-            env_rew = 0
-            rews += [path_rew + angle_rew + env_rew + dist_rew + joints_at_limit_cost]
-            print(joints_at_limit_cost, dist_rew)
+            rews += [path_rew + angle_rew + env_rew]
 
             obs.append(ob)
             behv.extend(pos)
@@ -196,7 +196,7 @@ if __name__ == '__main__':
 
         final_pos = np.array(tr.behaviour[-3:-1])
         gp = goal.numpy() * 7
-        dist = np.linalg.norm(final_pos - dist)
+        dist = np.linalg.norm(final_pos - gp)
         reporter.log({'dist from goal': dist})
 
         if gen % 10 == 0 and comm.rank == 0:  # save policy every 10 generations
