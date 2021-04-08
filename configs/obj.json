@@ -1,6 +1,6 @@
 {
   "env": {
-    "name": "AntMuJoCoEnv-v0",
+    "name": "AntBulletEnv-v0",
     "max_steps": 1000
   },
   "noise": {
@@ -32,7 +32,7 @@
     "elite": 1
   },
   "general": {
-    "name": "rp-newrew",
+    "name": "rp-potentialrew",
     "gens": 500,
     "policies_per_gen": 9600,
     "eps_per_policy": 1,

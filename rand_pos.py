@@ -99,6 +99,8 @@ def run_model(model: PrimFF,
 
     with torch.no_grad():
         ob = env.reset()
+        old_dist = -np.linalg.norm(env.unwrapped.parts['torso'].get_position()[:2] - goal_pos)
+
         for step in range(max_steps):
             ob = torch.from_numpy(ob).float()
 
@@ -111,9 +113,15 @@ def run_model(model: PrimFF,
                 path_rew = -path_rew + 2  # if walked further than the line, start penalizing
             path_rew = (path_rew + 1) / 2  # only positive
 
+            dist_to_goal = -np.linalg.norm(pos[:2] - goal_pos)
+            dist_rew = dist_to_goal - old_dist
+            old_dist = dist_to_goal
+            joints_at_limit_cost = float(env.joints_at_limit_cost * env.robot.joints_at_limit)
             path_rew = 0
             angle_rew = 0  # get_angular_reward(env, pos, goal_pos)
-            rews += [path_rew + angle_rew + env_rew]
+            env_rew = 0
+            rews += [path_rew + angle_rew + env_rew + dist_rew + joints_at_limit_cost]
+            print(joints_at_limit_cost, dist_rew)
 
             obs.append(ob)
             behv.extend(pos)
@@ -185,6 +193,11 @@ if __name__ == '__main__':
         tr, gen_obstat = es.step(cfg, comm, policy, nt, env, r_fn, rs, ranker, reporter)
         policy.update_obstat(gen_obstat)
         reporter.end_gen()
+
+        final_pos = np.array(tr.behaviour[-3:-1])
+        gp = goal.numpy() * 7
+        dist = np.linalg.norm(final_pos - dist)
+        reporter.log({'dist from goal': dist})
 
         if gen % 10 == 0 and comm.rank == 0:  # save policy every 10 generations
             policy.save(f'saved/{run_name}/weights/', str(gen))
