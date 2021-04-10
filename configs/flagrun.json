@@ -30,10 +30,10 @@
     "lr_decay": false,
     "noise_std_decay": false,
     "elite": 1,
-    "use_pos": true
+    "use_pos": false
   },
   "general": {
-    "name": "flagrun-pos",
+    "name": "flagrun-nopos",
     "gens": 500,
     "policies_per_gen": 4800,
     "eps_per_policy": 1,

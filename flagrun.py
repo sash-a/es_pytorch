@@ -1,4 +1,3 @@
-import time
 from typing import Tuple, List
 
 import gym
@@ -15,7 +14,7 @@ import src.core.es as es
 from src.core.noisetable import NoiseTable
 from src.core.policy import Policy
 from src.gym.training_result import TrainingResult, RewardResult
-from src.nn.nn import BaseNet
+from src.nn.nn import BaseNet, FeedForward
 from src.nn.optimizers import Adam
 from src.utils import utils
 from src.utils.rankers import CenteredRanker
@@ -80,7 +79,7 @@ def run_model(model: PrimFF,
               env: gym.Env,
               max_steps: int,
               rs: np.random.RandomState = None,
-              goal_normed=torch.tensor((1, 0)),
+              # goal_normed=torch.tensor((1, 0)),
               render: bool = False) -> \
         Tuple[List[float], List[float], np.ndarray, int]:
     """
@@ -91,23 +90,27 @@ def run_model(model: PrimFF,
     rews = []
     obs = []
 
-    goal_pos = goal_normed.numpy() * 7
-    env.walk_target_x, env.walk_target_y = goal_pos
-    env.robot.walk_target_x, env.robot.walk_target_y = goal_pos
-
-    sq_dist = np.linalg.norm(goal_pos) ** 2
+    # goal_pos = goal_normed.numpy() * 7
+    # env.walk_target_x, env.walk_target_y = goal_pos
+    # env.robot.walk_target_x, env.robot.walk_target_y = goal_pos
+    #
+    # sq_dist = np.linalg.norm(goal_pos) ** 2
     if render:
-        env.render()
+        env.render('human')
 
     with torch.no_grad():
         ob = env.reset()
+        goal_normed = torch.tensor([env.walk_target_x, env.walk_target_y]) / env.size
         # old_dist = -np.linalg.norm(env.unwrapped.parts['torso'].get_position()[:2] - goal_pos)
 
         for step in range(max_steps):
             ob = torch.from_numpy(ob).float()
 
             action = model(ob, rs=rs, goal=goal_normed)
-            ob, env_rew, done, _ = env.step(action.numpy())
+            ob, env_rew, done, i = env.step(action.numpy())
+
+            if 'target' in i:
+                goal_normed = torch.tensor([*i['target']]) / env.size
 
             pos = env.unwrapped.parts['torso'].get_position()
             # path_rew = np.dot(pos[:2], goal_pos) / sq_dist
@@ -121,16 +124,15 @@ def run_model(model: PrimFF,
             # joints_at_limit_cost = float(env.joints_at_limit_cost * env.robot.joints_at_limit)
             path_rew = 0
             angle_rew = 0  # get_angular_reward(env, pos, goal_pos)
-            rews += [path_rew + angle_rew + env_rew]
+            rews += [env_rew]
 
             obs.append(ob)
             behv.extend(pos)
 
             if render:
                 env.render('human')
-                time.sleep(1 / 100)  # if rendering only step about 60 times per second
                 # robot to goal
-                env.stadium_scene._p.addUserDebugLine(pos, [goal_pos[0], goal_pos[1], pos[2]], lifeTime=0.1)
+                # env.stadium_scene._p.addUserDebugLine(pos, [env.walk_target_x, env.walk_target_y, pos[2]], lifeTime=0.1)
                 # robot dir
                 # point = [10, m * 10 + c, pos[2]]
                 # env.stadium_scene._p.addUserDebugLine([x, y, pos[2]], point, lifeTime=0.1, lineColorRGB=[0, 1, 0])
@@ -163,23 +165,24 @@ if __name__ == '__main__':
     # initializing obstat, policy, optimizer, noise and ranker
     in_size = int(np.prod(env.observation_space.shape))
     out_size = int(np.prod(env.action_space.shape))
-    nn = PrimFF([in_size + 2] + cfg.policy.layer_sizes + [out_size], torch.nn.Tanh(), in_size, cfg.policy.ac_std,
-                cfg.policy.ob_clip)
+    if cfg.experimental.use_pos:
+        nn = PrimFF([in_size + 2] + cfg.policy.layer_sizes + [out_size],
+                    torch.nn.Tanh(), in_size, cfg.policy.ac_std, cfg.policy.ob_clip)
+    else:
+        nn = FeedForward(cfg.policy.layer_sizes, torch.nn.Tanh(), env, cfg.policy.ac_std, cfg.policy.ob_clip)
     policy: Policy = Policy(nn, cfg.noise.std, Adam(len(Policy.get_flat(nn)), cfg.policy.lr))
     nt: NoiseTable = NoiseTable.create_shared(comm, cfg.noise.tbl_size, len(policy), None, cfg.general.seed)
     ranker = CenteredRanker()
 
-    goal = (1, 0)
-
 
     def r_fn(model: PrimFF, use_ac_noise=True) -> TrainingResult:
         save_obs = (rs.random() if rs is not None else np.random.random()) < cfg.policy.save_obs_chance
-        rews, behv, obs, steps = run_model(model, env, 1000, rs if use_ac_noise else None, goal)
+        rews, behv, obs, steps = run_model(model, env, 1000, rs if use_ac_noise else None)
         return RewardResult(rews, behv, obs if save_obs else np.array([np.zeros(env.observation_space.shape)]), steps)
 
 
-    env.electricity_cost = 0
-    env.stall_torque_cost = 0
+    # env.electricity_cost = 0
+    # env.stall_torque_cost = 0
     # env.foot_collision_cost = 0
     # env.joints_at_limit_cost = 0
 
@@ -187,17 +190,16 @@ if __name__ == '__main__':
     eps_per_proc = int((cfg.general.policies_per_gen / comm.size) / 2)
     for gen in range(cfg.general.gens):  # main loop
         reporter.start_gen()
-        goal = torch.tensor(comm.scatter([gen_goal(rs)] * comm.size if comm.rank == 0 else None))
+        # goal = torch.tensor(comm.scatter([gen_goal(rs)] * comm.size if comm.rank == 0 else None))
 
-        reporter.print(f'goal:{goal}')
         tr, gen_obstat = es.step(cfg, comm, policy, nt, env, r_fn, rs, ranker, reporter)
         policy.update_obstat(gen_obstat)
         reporter.end_gen()
 
-        final_pos = np.array(tr.behaviour[-3:-1])
-        gp = goal.numpy() * 7
-        dist = np.linalg.norm(final_pos - gp)
-        reporter.log({'dist from goal': dist})
+        # final_pos = np.array(tr.behaviour[-3:-1])
+        # gp = goal.numpy() * 7
+        # dist = np.linalg.norm(final_pos - gp)
+        # reporter.log({'dist from goal': dist})
 
         if gen % 10 == 0 and comm.rank == 0:  # save policy every 10 generations
             policy.save(f'saved/{run_name}/weights/', str(gen))
