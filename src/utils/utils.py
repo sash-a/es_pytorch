@@ -18,6 +18,8 @@ def batch_noise(inds: np.ndarray, nt: NoiseTable, policy_len: int, batch_size: i
     batch = []
     for idx in inds:
         batch.append(nt.get(int(idx), policy_len))
+        if MPI.COMM_WORLD.rank == 0 and len(batch[-1] != 75650):
+            print(f'len noise:{len(batch[-1])}')
         if len(batch) == batch_size:
             yield np.array(batch)
             del batch[:]
@@ -31,8 +33,11 @@ def scale_noise(fits: np.ndarray, noise_inds: np.ndarray, nt: NoiseTable, policy
     assert len(fits) == len(noise_inds)
     total = 0
     batched_fits = [fits[i:min(i + batch_size, len(fits))] for i in range(0, len(fits), batch_size)]
+    comm = MPI.COMM_WORLD
 
     for fit_batch, noise_batch in zip(batched_fits, batch_noise(noise_inds, nt, policy_len, batch_size)):
+        if comm.rank == 0:
+            print(f'fb:{fit_batch.shape}|nb:{noise_batch.shape}')
         total += np.dot(fit_batch, noise_batch)
 
     return total
