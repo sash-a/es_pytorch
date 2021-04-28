@@ -31,7 +31,7 @@ class NoiseTable:
         self._size = len(noise)
 
     def get(self, i, size) -> np.ndarray:
-        assert len(self) > i + size
+        assert len(self) > i + size, 'trying to index outside the range of the noise table'
         return self.noise[i:i + size]
 
     def sample_idx(self, rs: np.random.RandomState, size: int):
