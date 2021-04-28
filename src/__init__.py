@@ -5,6 +5,11 @@ except:
     pass
 
 try:
+    import pybulletgym
+except:
+    pass
+
+try:
     import hrl_pybullet_envs
 except:
     pass

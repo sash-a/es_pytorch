@@ -1,5 +1,5 @@
 import time
-from typing import List, Tuple
+from typing import List, Tuple, Callable
 
 import gym
 import numpy as np
@@ -10,11 +10,33 @@ from src.gym.unity import UnityGymWrapper
 BULLET_ENV_SUFFIX = 'BulletEnv'
 
 
+def pybullet_envs_pos(env):  # pybullet_envs
+    return env.robot.body_real_xyz
+
+
+def pybullet_gym_pos(env):  # pybullet-gym
+    return env.robot.robot_body.pose().xyz()
+
+
+def hbaselines_pos(env):  # hbaselines
+    return env.wrapped_env.get_body_com("torso")[:3]
+
+
+def mujoco_pos(env):  # mujoco default envs
+    model = env.model
+    mass = np.reshape(model.body_mass, (-1, 1))
+    xpos = env.data.xipos
+    center = (np.sum(mass * xpos, 0) / np.sum(mass))
+    return center[0], center[1], center[2]
+
+
 def run_model(model: torch.nn.Module,
               env: gym.Env,
               max_steps: int,
               rs: np.random.RandomState = None,
-              render: bool = False) -> Tuple[List[float], List[float], np.ndarray, int]:
+              render: bool = False,
+              get_pos_fn: Callable[[gym.Env], Tuple[float, float, float]] = pybullet_gym_pos) -> \
+        Tuple[List[float], List[float], np.ndarray, int]:
     """
     Evaluates model on the provided env
     :returns: tuple of rewards earned and positions at each timestep position list is always of length `max_steps`
@@ -32,7 +54,7 @@ def run_model(model: torch.nn.Module,
             ob, rew, done, _ = env.step(action.numpy())
             rews += [rew]
             obs.append(ob)
-            behv.extend(_get_pos(env.unwrapped))
+            behv.extend(get_pos_fn(env.unwrapped))
 
             if render:
                 env.render('human')
@@ -87,17 +109,3 @@ def multi_agent_gym_runner(policies: List[torch.nn.Module],
 
     behv += behv[-3:] * (max_steps - int(len(behv) / 3))  # extending the behaviour vector to have `max_steps` elements
     return rews, behv, np.array(saved_obs), step
-
-
-def _get_pos(env):
-    # if env.spec.id[:-3] in ["AntMaze", "AntPush", "AntFall"]:  # hrl ant env
-    #     return env.wrapped_env.get_body_com("torso")[:3]
-
-    if BULLET_ENV_SUFFIX in env.spec.id:  # bullet env
-        return env.robot.body_xyz[:3]
-    else:  # mujoco env
-        model = env.model
-        mass = np.reshape(model.body_mass, (-1, 1))
-        xpos = env.data.xipos
-        center = (np.sum(mass * xpos, 0) / np.sum(mass))
-        return center[0], center[1], center[2]
