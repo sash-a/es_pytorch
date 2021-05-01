@@ -1,3 +1,4 @@
+import time
 from typing import Tuple, List
 
 import gym
@@ -89,6 +90,7 @@ def run_model(model: PrimFF,
     behv = []
     rews = []
     obs = []
+    dist_rew = 0
 
     # goal_pos = goal_normed.numpy() * 7
     # env.walk_target_x, env.walk_target_y = goal_pos
@@ -112,7 +114,7 @@ def run_model(model: PrimFF,
             if 'target' in i:
                 goal_normed = torch.tensor([*i['target']]) / env.size
 
-            pos = env.unwrapped.parts['torso'].get_position()
+            pos = env.unwrapped.robot.body_xyz[:2]
             # path_rew = np.dot(pos[:2], goal_pos) / sq_dist
             # if path_rew > 1:
             #     path_rew = -path_rew + 2  # if walked further than the line, start penalizing
@@ -131,6 +133,7 @@ def run_model(model: PrimFF,
 
             if render:
                 env.render('human')
+                time.sleep(1 / 100)
                 # robot to goal
                 # env.stadium_scene._p.addUserDebugLine(pos, [env.walk_target_x, env.walk_target_y, pos[2]], lifeTime=0.1)
                 # robot dir
@@ -155,8 +158,9 @@ if __name__ == '__main__':
     run_name = f'{cfg.env.name}-{cfg.general.name}'
     reporter = DefaultMpiReporterSet(comm, run_name, StdoutReporter(comm), LoggerReporter(comm, run_name))
 
-    env: gym.Env = gym.make(cfg.env.name)
-
+    env: gym.Env = gym.make(cfg.env.name, enclosed=True, timeout=-1)
+    env.ant_env_rew_weight = cfg.env.ant_env_rew_weight
+    env.path_rew_weight = cfg.env.path_rew_weight
     # seeding; this must be done before creating the neural network so that params are deterministic across processes
     rs, my_seed, global_seed = utils.seed(comm, cfg.general.seed, env)
     all_seeds = comm.alltoall([my_seed] * comm.size)  # simply for saving/viewing the seeds used on each proc
@@ -177,7 +181,7 @@ if __name__ == '__main__':
 
     def r_fn(model: PrimFF, use_ac_noise=True) -> TrainingResult:
         save_obs = (rs.random() if rs is not None else np.random.random()) < cfg.policy.save_obs_chance
-        rews, behv, obs, steps = run_model(model, env, 1000, rs if use_ac_noise else None)
+        rews, behv, obs, steps = run_model(model, env, 1000, rs if use_ac_noise else None, False)
         return RewardResult(rews, behv, obs if save_obs else np.array([np.zeros(env.observation_space.shape)]), steps)
 
 

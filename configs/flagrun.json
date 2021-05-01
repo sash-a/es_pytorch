@@ -1,7 +1,9 @@
 {
   "env": {
     "name": "AntFlagrunBulletEnv-v0",
-    "max_steps": 1000
+    "max_steps": 1000,
+    "ant_env_rew_weight": 0,
+    "path_rew_weight": 1
   },
   "noise": {
     "tbl_size": 250000000,
@@ -33,7 +35,7 @@
     "use_pos": false
   },
   "general": {
-    "name": "flagrun-nopos",
+    "name": "flagrun-path_rew_fixed",
     "gens": 500,
     "policies_per_gen": 4800,
     "eps_per_policy": 1,
