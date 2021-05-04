@@ -28,8 +28,10 @@ class NoiseTable:
     def __init__(self, n_params: int, noise: np.ndarray):
         self.n_params: int = n_params
         self.noise: np.ndarray = noise
+        self._size = len(noise)
 
     def get(self, i, size) -> np.ndarray:
+        assert len(self) > i + size, 'trying to index outside the range of the noise table'
         return self.noise[i:i + size]
 
     def sample_idx(self, rs: np.random.RandomState, size: int):
@@ -51,7 +53,7 @@ class NoiseTable:
         return self.get(item, self.n_params)
 
     def __len__(self):
-        return len(self.noise)
+        return self._size
 
     def __call__(self, *args, **kwargs) -> Tuple[int, np.ndarray]:
         return self.sample()
