@@ -3,7 +3,12 @@
     "name": "AntFlagrunBulletEnv-v0",
     "max_steps": 1000,
     "ant_env_rew_weight": 0,
-    "path_rew_weight": 1
+    "path_rew_weight": 1,
+    "kwargs": {
+      "enclosed": true,
+      "timeout": 100,
+      "size": 5
+    }
   },
   "noise": {
     "tbl_size": 250000000,
@@ -35,10 +40,10 @@
     "use_pos": false
   },
   "general": {
-    "name": "flagrun-path_rew_fixed",
+    "name": "flagrun-5eps_100timeout_5size",
     "gens": 500,
     "policies_per_gen": 4800,
-    "eps_per_policy": 1,
+    "eps_per_policy": 5,
     "n_policies": 1,
     "batch_size": 500,
     "seed": null,

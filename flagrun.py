@@ -79,8 +79,8 @@ def get_angular_reward(e: gym.Env, pos: np.ndarray, goal_pos: np.ndarray) -> flo
 def run_model(model: PrimFF,
               env: gym.Env,
               max_steps: int,
+              episodes=1,
               rs: np.random.RandomState = None,
-              # goal_normed=torch.tensor((1, 0)),
               render: bool = False) -> \
         Tuple[List[float], List[float], np.ndarray, int]:
     """
@@ -101,49 +101,50 @@ def run_model(model: PrimFF,
         env.render('human')
 
     with torch.no_grad():
-        ob = env.reset()
-        goal_normed = torch.tensor([env.walk_target_x, env.walk_target_y]) / env.size
-        # old_dist = -np.linalg.norm(env.unwrapped.parts['torso'].get_position()[:2] - goal_pos)
+        for ep in range(episodes):
+            ob = env.reset()
+            goal_normed = torch.tensor([env.walk_target_x, env.walk_target_y]) / env.size
+            # old_dist = -np.linalg.norm(env.unwrapped.parts['torso'].get_position()[:2] - goal_pos)
 
-        for step in range(max_steps):
-            ob = torch.from_numpy(ob).float()
+            for step in range(max_steps):
+                ob = torch.from_numpy(ob).float()
 
-            action = model(ob, rs=rs, goal=goal_normed)
-            ob, env_rew, done, i = env.step(action.numpy())
+                action = model(ob, rs=rs, goal=goal_normed)
+                ob, env_rew, done, i = env.step(action.numpy())
 
-            if 'target' in i:
-                goal_normed = torch.tensor([*i['target']]) / env.size
+                if 'target' in i:
+                    goal_normed = torch.tensor([*i['target']]) / env.size
 
-            pos = env.unwrapped.robot.body_xyz[:2]
-            # path_rew = np.dot(pos[:2], goal_pos) / sq_dist
-            # if path_rew > 1:
-            #     path_rew = -path_rew + 2  # if walked further than the line, start penalizing
-            # path_rew = (path_rew + 1) / 2  # only positive
+                pos = env.unwrapped.robot.body_xyz[:2]
+                # path_rew = np.dot(pos[:2], goal_pos) / sq_dist
+                # if path_rew > 1:
+                #     path_rew = -path_rew + 2  # if walked further than the line, start penalizing
+                # path_rew = (path_rew + 1) / 2  # only positive
 
-            # dist_to_goal = -np.linalg.norm(pos[:2] - goal_pos)
-            # dist_rew = dist_to_goal - old_dist
-            # old_dist = dist_to_goal
-            # joints_at_limit_cost = float(env.joints_at_limit_cost * env.robot.joints_at_limit)
-            path_rew = 0
-            angle_rew = 0  # get_angular_reward(env, pos, goal_pos)
-            rews += [env_rew]
+                # dist_to_goal = -np.linalg.norm(pos[:2] - goal_pos)
+                # dist_rew = dist_to_goal - old_dist
+                # old_dist = dist_to_goal
+                # joints_at_limit_cost = float(env.joints_at_limit_cost * env.robot.joints_at_limit)
+                path_rew = 0
+                angle_rew = 0  # get_angular_reward(env, pos, goal_pos)
+                rews += [env_rew / episodes]
 
-            obs.append(ob)
-            behv.extend(pos)
+                obs.append(ob)
+                behv.extend(pos)
 
-            if render:
-                env.render('human')
-                time.sleep(1 / 100)
-                # robot to goal
-                # env.stadium_scene._p.addUserDebugLine(pos, [env.walk_target_x, env.walk_target_y, pos[2]], lifeTime=0.1)
-                # robot dir
-                # point = [10, m * 10 + c, pos[2]]
-                # env.stadium_scene._p.addUserDebugLine([x, y, pos[2]], point, lifeTime=0.1, lineColorRGB=[0, 1, 0])
+                if render:
+                    env.render('human')
+                    time.sleep(1 / 100)
+                    # robot to goal
+                    # env.stadium_scene._p.addUserDebugLine(pos, [env.walk_target_x, env.walk_target_y, pos[2]], lifeTime=0.1)
+                    # robot dir
+                    # point = [10, m * 10 + c, pos[2]]
+                    # env.stadium_scene._p.addUserDebugLine([x, y, pos[2]], point, lifeTime=0.1, lineColorRGB=[0, 1, 0])
 
-            if done:
-                break
+                if done:
+                    break
 
-        # rews += [-((pos[0] - goal_pos[0]) ** 2 + (pos[1] - goal_pos[1]) ** 2)]
+            # rews += [-((pos[0] - goal_pos[0]) ** 2 + (pos[1] - goal_pos[1]) ** 2)]
 
     behv += behv[-3:] * (max_steps - int(len(behv) / 3))  # extending the behaviour vector to have `max_steps` elements
     return rews, behv, np.array(obs), step
@@ -181,7 +182,8 @@ if __name__ == '__main__':
 
     def r_fn(model: PrimFF, use_ac_noise=True) -> TrainingResult:
         save_obs = (rs.random() if rs is not None else np.random.random()) < cfg.policy.save_obs_chance
-        rews, behv, obs, steps = run_model(model, env, 1000, rs if use_ac_noise else None, False)
+        rews, behv, obs, steps = run_model(model, env, cfg.env.max_steps, cfg.general.eps_per_policy,
+                                           rs if use_ac_noise else None, False)
         return RewardResult(rews, behv, obs if save_obs else np.array([np.zeros(env.observation_space.shape)]), steps)
 
 
