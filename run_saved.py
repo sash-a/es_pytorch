@@ -40,7 +40,11 @@ if __name__ == '__main__':
     # # noinspection PyUnresolvedReferences
     # import pybullet_envs
 
-    e = gym.make(args.env, enclosed=True, timeout=-1).unwrapped
+    timeout = 200
+    world_size = 10
+    enclosed = True
+
+    e = gym.make(args.env, enclosed=enclosed, timeout=timeout, size=world_size).unwrapped
     e.mpi_common_rand = np.random.RandomState()
 
     e.render('human')
