@@ -4,9 +4,9 @@ from typing import Tuple, List
 import gym
 import numpy as np
 # noinspection PyUnresolvedReferences
-import pybullet_envs
+import hrl_pybullet_envs
 # noinspection PyUnresolvedReferences
-import pybulletgym
+import pybullet_envs
 import torch
 from mpi4py import MPI
 from torch import Tensor, clamp, cat, nn
@@ -162,6 +162,7 @@ if __name__ == '__main__':
     env: gym.Env = gym.make(cfg.env.name, enclosed=True, timeout=-1)
     env.ant_env_rew_weight = cfg.env.ant_env_rew_weight
     env.path_rew_weight = cfg.env.path_rew_weight
+    env.goal_reach_rew = cfg.env.goal_reach_rew
     # seeding; this must be done before creating the neural network so that params are deterministic across processes
     rs, my_seed, global_seed = utils.seed(comm, cfg.general.seed, env)
     all_seeds = comm.alltoall([my_seed] * comm.size)  # simply for saving/viewing the seeds used on each proc
