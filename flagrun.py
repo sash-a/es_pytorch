@@ -116,18 +116,7 @@ def run_model(model: PrimFF,
                     goal_normed = torch.tensor([*i['target']]) / env.size
 
                 pos = env.unwrapped.robot.body_xyz[:2]
-                # path_rew = np.dot(pos[:2], goal_pos) / sq_dist
-                # if path_rew > 1:
-                #     path_rew = -path_rew + 2  # if walked further than the line, start penalizing
-                # path_rew = (path_rew + 1) / 2  # only positive
-
-                # dist_to_goal = -np.linalg.norm(pos[:2] - goal_pos)
-                # dist_rew = dist_to_goal - old_dist
-                # old_dist = dist_to_goal
-                # joints_at_limit_cost = float(env.joints_at_limit_cost * env.robot.joints_at_limit)
-                path_rew = 0
-                angle_rew = 0  # get_angular_reward(env, pos, goal_pos)
-                rews += [env_rew / episodes]
+                rews += [env_rew]
 
                 obs.append(ob)
                 behv.extend(pos)
@@ -145,9 +134,9 @@ def run_model(model: PrimFF,
                     break
 
             # rews += [-((pos[0] - goal_pos[0]) ** 2 + (pos[1] - goal_pos[1]) ** 2)]
-
+    rew = sum(rews) / episodes
     behv += behv[-3:] * (max_steps - int(len(behv) / 3))  # extending the behaviour vector to have `max_steps` elements
-    return rews, behv, np.array(obs), step
+    return [rew], behv, np.array(obs), step
 
 
 if __name__ == '__main__':
@@ -171,15 +160,11 @@ if __name__ == '__main__':
     # initializing obstat, policy, optimizer, noise and ranker
     in_size = int(np.prod(env.observation_space.shape))
     out_size = int(np.prod(env.action_space.shape))
-    if cfg.experimental.use_pos:
-        nn = PrimFF([in_size + 2] + cfg.policy.layer_sizes + [out_size],
-                    torch.nn.Tanh(), in_size, cfg.policy.ac_std, cfg.policy.ob_clip)
-    else:
-        nn = FeedForward(cfg.policy.layer_sizes, torch.nn.Tanh(), env, cfg.policy.ac_std, cfg.policy.ob_clip)
+
+    nn = FeedForward(cfg.policy.layer_sizes, torch.nn.Tanh(), env, cfg.policy.ac_std, cfg.policy.ob_clip)
     policy: Policy = Policy(nn, cfg.noise.std, Adam(len(Policy.get_flat(nn)), cfg.policy.lr))
     nt: NoiseTable = NoiseTable.create_shared(comm, cfg.noise.tbl_size, len(policy), None, cfg.general.seed)
     ranker = CenteredRanker()
-
 
     def r_fn(model: PrimFF, use_ac_noise=True) -> TrainingResult:
         save_obs = (rs.random() if rs is not None else np.random.random()) < cfg.policy.save_obs_chance

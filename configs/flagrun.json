@@ -1,7 +1,7 @@
 {
   "env": {
     "name": "AntFlagrunBulletEnv-v0",
-    "max_steps": 1000,
+    "max_steps": 500,
     "ant_env_rew_weight": 0,
     "path_rew_weight": 1,
     "goal_reach_rew": 10,
@@ -19,7 +19,6 @@
   },
   "policy": {
     "layer_sizes": [
-      256,
       256,
       256
     ],
@@ -41,8 +40,8 @@
     "use_pos": false
   },
   "general": {
-    "name": "flagrun-pathrewfixedagain",
-    "gens": 500,
+    "name": "flagrun-newobs",
+    "gens": 200,
     "policies_per_gen": 2400,
     "eps_per_policy": 20,
     "n_policies": 1,
