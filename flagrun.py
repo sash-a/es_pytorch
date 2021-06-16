@@ -103,19 +103,19 @@ def run_model(model: PrimFF,
     with torch.no_grad():
         for ep in range(episodes):
             ob = env.reset()
-            goal_normed = torch.tensor([env.walk_target_x, env.walk_target_y]) / env.size
+            # goal_normed = torch.tensor([env.walk_target_x, env.walk_target_y]) / env.size
             # old_dist = -np.linalg.norm(env.unwrapped.parts['torso'].get_position()[:2] - goal_pos)
 
             for step in range(max_steps):
                 ob = torch.from_numpy(ob).float()
 
-                action = model(ob, rs=rs, goal=goal_normed)
+                action = model(ob, rs=rs)
                 ob, env_rew, done, i = env.step(action.numpy())
 
-                if 'target' in i:
-                    goal_normed = torch.tensor([*i['target']]) / env.size
+                # if 'target' in i:
+                #     goal_normed = torch.tensor([*i['target']]) / env.size
 
-                pos = env.unwrapped.robot.body_xyz[:2]
+                pos = env.unwrapped.robot.body_real_xyz[:2]
                 rews += [env_rew]
 
                 obs.append(ob)
@@ -123,15 +123,16 @@ def run_model(model: PrimFF,
 
                 if render:
                     env.render('human')
-                    time.sleep(1 / 100)
+                    # time.sleep(1 / 100)
+                    env.stadium_scene._p.addUserDebugLine([*pos, 0.5], [*(pos + ob[:2]), 0.5], lifeTime=0.1)
                     # robot to goal
                     # env.stadium_scene._p.addUserDebugLine(pos, [env.walk_target_x, env.walk_target_y, pos[2]], lifeTime=0.1)
                     # robot dir
                     # point = [10, m * 10 + c, pos[2]]
                     # env.stadium_scene._p.addUserDebugLine([x, y, pos[2]], point, lifeTime=0.1, lineColorRGB=[0, 1, 0])
 
-                if done:
-                    break
+                    if done:
+                        break
 
             # rews += [-((pos[0] - goal_pos[0]) ** 2 + (pos[1] - goal_pos[1]) ** 2)]
     rew = sum(rews) / episodes
@@ -148,7 +149,7 @@ if __name__ == '__main__':
     run_name = f'{cfg.env.name}-{cfg.general.name}'
     reporter = DefaultMpiReporterSet(comm, run_name, StdoutReporter(comm), LoggerReporter(comm, run_name))
 
-    env: gym.Env = gym.make(cfg.env.name, enclosed=True, timeout=-1)
+    env: gym.Env = gym.make(cfg.env.name, **cfg.env.kwargs)
     env.ant_env_rew_weight = cfg.env.ant_env_rew_weight
     env.path_rew_weight = cfg.env.path_rew_weight
     env.goal_reach_rew = cfg.env.goal_reach_rew
@@ -165,6 +166,7 @@ if __name__ == '__main__':
     policy: Policy = Policy(nn, cfg.noise.std, Adam(len(Policy.get_flat(nn)), cfg.policy.lr))
     nt: NoiseTable = NoiseTable.create_shared(comm, cfg.noise.tbl_size, len(policy), None, cfg.general.seed)
     ranker = CenteredRanker()
+
 
     def r_fn(model: PrimFF, use_ac_noise=True) -> TrainingResult:
         save_obs = (rs.random() if rs is not None else np.random.random()) < cfg.policy.save_obs_chance
