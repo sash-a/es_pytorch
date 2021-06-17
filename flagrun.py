@@ -8,6 +8,7 @@ import hrl_pybullet_envs
 # noinspection PyUnresolvedReferences
 import pybullet_envs
 import torch
+from hrl_pybullet_envs import AntFlagrunBulletEnv
 from mpi4py import MPI
 from torch import Tensor, clamp, cat, nn
 
@@ -148,11 +149,14 @@ if __name__ == '__main__':
 
     run_name = f'{cfg.env.name}-{cfg.general.name}'
     reporter = DefaultMpiReporterSet(comm, run_name, StdoutReporter(comm), LoggerReporter(comm, run_name))
+    reporter.print(str(cfg))
 
     env: gym.Env = gym.make(cfg.env.name, **cfg.env.kwargs)
-    env.ant_env_rew_weight = cfg.env.ant_env_rew_weight
-    env.path_rew_weight = cfg.env.path_rew_weight
-    env.goal_reach_rew = cfg.env.goal_reach_rew
+    AntFlagrunBulletEnv.ant_env_rew_weight = cfg.env.ant_env_rew_weight
+    AntFlagrunBulletEnv.path_rew_weight = cfg.env.path_rew_weight
+    AntFlagrunBulletEnv.dist_rew_weight = cfg.env.dist_rew_weight
+    AntFlagrunBulletEnv.goal_reach_rew = cfg.env.goal_reach_rew
+
     # seeding; this must be done before creating the neural network so that params are deterministic across processes
     rs, my_seed, global_seed = utils.seed(comm, cfg.general.seed, env)
     all_seeds = comm.alltoall([my_seed] * comm.size)  # simply for saving/viewing the seeds used on each proc

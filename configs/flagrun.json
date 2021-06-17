@@ -3,12 +3,14 @@
     "name": "AntFlagrunBulletEnv-v0",
     "max_steps": 500,
     "ant_env_rew_weight": 0,
-    "path_rew_weight": 1,
-    "goal_reach_rew": 10,
+    "path_rew_weight": 0,
+    "dist_rew_weight": 1,
+    "goal_reach_rew": 5000,
     "kwargs": {
       "enclosed": true,
       "timeout": 100,
-      "size": 10
+      "size": 6,
+      "tolerance": 1
     }
   },
   "noise": {
@@ -40,7 +42,7 @@
     "use_pos": false
   },
   "general": {
-    "name": "flagrun-newobs",
+    "name": "flagrun-newobs-newrew-size6",
     "gens": 200,
     "policies_per_gen": 2400,
     "eps_per_policy": 20,
