@@ -1,13 +1,16 @@
 {
   "env": {
     "name": "AntFlagrunBulletEnv-v0",
-    "max_steps": 1000,
-    "ant_env_rew_weight": 1,
-    "path_rew_weight": 1,
+    "max_steps": 500,
+    "ant_env_rew_weight": 0,
+    "path_rew_weight": 0,
+    "dist_rew_weight": 1,
+    "goal_reach_rew": 5000,
     "kwargs": {
       "enclosed": true,
       "timeout": 100,
-      "size": 10
+      "size": 6,
+      "tolerance": 1
     }
   },
   "noise": {
@@ -18,7 +21,6 @@
   },
   "policy": {
     "layer_sizes": [
-      256,
       256,
       256
     ],
@@ -40,10 +42,10 @@
     "use_pos": false
   },
   "general": {
-    "name": "flagrun-10eps_100timeout_10size-env_and_path_rew",
-    "gens": 500,
+    "name": "flagrun-newobs-newrew-size6",
+    "gens": 200,
     "policies_per_gen": 2400,
-    "eps_per_policy": 10,
+    "eps_per_policy": 20,
     "n_policies": 1,
     "batch_size": 500,
     "seed": null,

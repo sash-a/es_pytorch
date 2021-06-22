@@ -4,10 +4,11 @@ from typing import Tuple, List
 import gym
 import numpy as np
 # noinspection PyUnresolvedReferences
-import pybullet_envs
+import hrl_pybullet_envs
 # noinspection PyUnresolvedReferences
-import pybulletgym
+import pybullet_envs
 import torch
+from hrl_pybullet_envs import AntFlagrunBulletEnv
 from mpi4py import MPI
 from torch import Tensor, clamp, cat, nn
 
@@ -103,51 +104,41 @@ def run_model(model: PrimFF,
     with torch.no_grad():
         for ep in range(episodes):
             ob = env.reset()
-            goal_normed = torch.tensor([env.walk_target_x, env.walk_target_y]) / env.size
+            # goal_normed = torch.tensor([env.walk_target_x, env.walk_target_y]) / env.size
             # old_dist = -np.linalg.norm(env.unwrapped.parts['torso'].get_position()[:2] - goal_pos)
 
             for step in range(max_steps):
                 ob = torch.from_numpy(ob).float()
 
-                action = model(ob, rs=rs, goal=goal_normed)
+                action = model(ob, rs=rs)
                 ob, env_rew, done, i = env.step(action.numpy())
 
-                if 'target' in i:
-                    goal_normed = torch.tensor([*i['target']]) / env.size
+                # if 'target' in i:
+                #     goal_normed = torch.tensor([*i['target']]) / env.size
 
-                pos = env.unwrapped.robot.body_xyz[:2]
-                # path_rew = np.dot(pos[:2], goal_pos) / sq_dist
-                # if path_rew > 1:
-                #     path_rew = -path_rew + 2  # if walked further than the line, start penalizing
-                # path_rew = (path_rew + 1) / 2  # only positive
-
-                # dist_to_goal = -np.linalg.norm(pos[:2] - goal_pos)
-                # dist_rew = dist_to_goal - old_dist
-                # old_dist = dist_to_goal
-                # joints_at_limit_cost = float(env.joints_at_limit_cost * env.robot.joints_at_limit)
-                path_rew = 0
-                angle_rew = 0  # get_angular_reward(env, pos, goal_pos)
-                rews += [env_rew / episodes]
+                pos = env.unwrapped.robot.body_real_xyz[:2]
+                rews += [env_rew]
 
                 obs.append(ob)
                 behv.extend(pos)
 
                 if render:
                     env.render('human')
-                    time.sleep(1 / 100)
+                    # time.sleep(1 / 100)
+                    env.stadium_scene._p.addUserDebugLine([*pos, 0.5], [*(pos + ob[:2]), 0.5], lifeTime=0.1)
                     # robot to goal
                     # env.stadium_scene._p.addUserDebugLine(pos, [env.walk_target_x, env.walk_target_y, pos[2]], lifeTime=0.1)
                     # robot dir
                     # point = [10, m * 10 + c, pos[2]]
                     # env.stadium_scene._p.addUserDebugLine([x, y, pos[2]], point, lifeTime=0.1, lineColorRGB=[0, 1, 0])
 
-                if done:
-                    break
+                    if done:
+                        break
 
             # rews += [-((pos[0] - goal_pos[0]) ** 2 + (pos[1] - goal_pos[1]) ** 2)]
-
+    rew = sum(rews) / episodes
     behv += behv[-3:] * (max_steps - int(len(behv) / 3))  # extending the behaviour vector to have `max_steps` elements
-    return rews, behv, np.array(obs), step
+    return [rew], behv, np.array(obs), step
 
 
 if __name__ == '__main__':
@@ -158,10 +149,14 @@ if __name__ == '__main__':
 
     run_name = f'{cfg.env.name}-{cfg.general.name}'
     reporter = DefaultMpiReporterSet(comm, run_name, StdoutReporter(comm), LoggerReporter(comm, run_name))
+    reporter.print(str(cfg))
 
-    env: gym.Env = gym.make(cfg.env.name, enclosed=True, timeout=-1)
-    env.ant_env_rew_weight = cfg.env.ant_env_rew_weight
-    env.path_rew_weight = cfg.env.path_rew_weight
+    env: gym.Env = gym.make(cfg.env.name, **cfg.env.kwargs)
+    AntFlagrunBulletEnv.ant_env_rew_weight = cfg.env.ant_env_rew_weight
+    AntFlagrunBulletEnv.path_rew_weight = cfg.env.path_rew_weight
+    AntFlagrunBulletEnv.dist_rew_weight = cfg.env.dist_rew_weight
+    AntFlagrunBulletEnv.goal_reach_rew = cfg.env.goal_reach_rew
+
     # seeding; this must be done before creating the neural network so that params are deterministic across processes
     rs, my_seed, global_seed = utils.seed(comm, cfg.general.seed, env)
     all_seeds = comm.alltoall([my_seed] * comm.size)  # simply for saving/viewing the seeds used on each proc
@@ -170,11 +165,8 @@ if __name__ == '__main__':
     # initializing obstat, policy, optimizer, noise and ranker
     in_size = int(np.prod(env.observation_space.shape))
     out_size = int(np.prod(env.action_space.shape))
-    if cfg.experimental.use_pos:
-        nn = PrimFF([in_size + 2] + cfg.policy.layer_sizes + [out_size],
-                    torch.nn.Tanh(), in_size, cfg.policy.ac_std, cfg.policy.ob_clip)
-    else:
-        nn = FeedForward(cfg.policy.layer_sizes, torch.nn.Tanh(), env, cfg.policy.ac_std, cfg.policy.ob_clip)
+
+    nn = FeedForward(cfg.policy.layer_sizes, torch.nn.Tanh(), env, cfg.policy.ac_std, cfg.policy.ob_clip)
     policy: Policy = Policy(nn, cfg.noise.std, Adam(len(Policy.get_flat(nn)), cfg.policy.lr))
     nt: NoiseTable = NoiseTable.create_shared(comm, cfg.noise.tbl_size, len(policy), None, cfg.general.seed)
     ranker = CenteredRanker()
