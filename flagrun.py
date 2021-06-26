@@ -178,12 +178,6 @@ if __name__ == '__main__':
                                            rs if use_ac_noise else None, False)
         return RewardResult(rews, behv, obs if save_obs else np.array([np.zeros(env.observation_space.shape)]), steps)
 
-
-    # env.electricity_cost = 0
-    # env.stall_torque_cost = 0
-    # env.foot_collision_cost = 0
-    # env.joints_at_limit_cost = 0
-
     assert cfg.general.policies_per_gen % comm.size == 0 and (cfg.general.policies_per_gen / comm.size) % 2 == 0
     eps_per_proc = int((cfg.general.policies_per_gen / comm.size) / 2)
     for gen in range(cfg.general.gens):  # main loop
