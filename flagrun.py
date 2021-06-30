@@ -125,9 +125,10 @@ def run_model(model: PrimFF,
                 if render:
                     env.render('human')
                     # time.sleep(1 / 100)
-                    env.stadium_scene._p.addUserDebugLine([*pos, 0.5], [*(pos + ob[:2]), 0.5], lifeTime=0.1)
+                    # env.stadium_scene._p.addUserDebugLine([*pos, 0.5], [*(pos + ob[:2]), 0.5], lifeTime=0.1)
                     # robot to goal
-                    # env.stadium_scene._p.addUserDebugLine(pos, [env.walk_target_x, env.walk_target_y, pos[2]], lifeTime=0.1)
+                    env.stadium_scene._p.addUserDebugLine([*pos, 0.5], [env.walk_target_x, env.walk_target_y, 0.5],
+                                                          lifeTime=0.1)
                     # robot dir
                     # point = [10, m * 10 + c, pos[2]]
                     # env.stadium_scene._p.addUserDebugLine([x, y, pos[2]], point, lifeTime=0.1, lineColorRGB=[0, 1, 0])
@@ -177,6 +178,7 @@ if __name__ == '__main__':
         rews, behv, obs, steps = run_model(model, env, cfg.env.max_steps, cfg.general.eps_per_policy,
                                            rs if use_ac_noise else None, False)
         return RewardResult(rews, behv, obs if save_obs else np.array([np.zeros(env.observation_space.shape)]), steps)
+
 
     assert cfg.general.policies_per_gen % comm.size == 0 and (cfg.general.policies_per_gen / comm.size) % 2 == 0
     eps_per_proc = int((cfg.general.policies_per_gen / comm.size) / 2)

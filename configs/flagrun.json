@@ -5,14 +5,15 @@
     "ant_env_rew_weight": 1,
     "path_rew_weight": 0,
     "dist_rew_weight": 0,
-    "goal_reach_rew": 5000,
+    "goal_reach_rew": 500,
     "kwargs": {
       "enclosed": true,
       "timeout": 100,
       "size": 10,
       "max_target_dist": 4,
       "max_targets": 0,
-      "tolerance": 0.5
+      "tolerance": 1,
+      "switch_flag_on_collision": false
     }
   },
   "noise": {
