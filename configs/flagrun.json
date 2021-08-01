@@ -2,9 +2,9 @@
   "env": {
     "name": "AntFlagrunBulletEnv-v0",
     "max_steps": 500,
-    "ant_env_rew_weight": 1,
+    "ant_env_rew_weight": 0,
     "path_rew_weight": 0,
-    "dist_rew_weight": 0,
+    "dist_rew_weight": 1,
     "goal_reach_rew": 500,
     "kwargs": {
       "enclosed": true,
@@ -13,7 +13,7 @@
       "max_target_dist": 4,
       "max_targets": 0,
       "tolerance": 1,
-      "switch_flag_on_collision": true,
+      "switch_flag_on_collision": false,
       "use_sensor": true
     }
   },
@@ -25,8 +25,10 @@
   },
   "policy": {
     "layer_sizes": [
+      128,
       256,
-      256
+      256,
+      128
     ],
     "ac_std": 0.01,
     "ac_std_decay": 1,
@@ -46,10 +48,10 @@
     "use_pos": false
   },
   "general": {
-    "name": "flagrun-local-stupid-sensor",
-    "gens": 200,
-    "policies_per_gen": 960,
-    "eps_per_policy": 100,
+    "name": "flagrun-sensor-distrew-100timeout",
+    "gens": 201,
+    "policies_per_gen": 1200,
+    "eps_per_policy": 10,
     "n_policies": 1,
     "batch_size": 500,
     "seed": null,

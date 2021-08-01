@@ -43,13 +43,31 @@ if __name__ == '__main__':
     timeout = 200
     world_size = 10
     enclosed = True
+    tolerance = 1
+    steps = 1000
+    max_target_dist = 4
+    max_targets = 0
+    switch_flag_on_collision = False
+    use_sensor = False
 
-    e = gym.make(args.env, enclosed=enclosed, timeout=timeout, size=world_size).unwrapped
+    e = gym.make(args.env,
+                 enclosed=enclosed,
+                 timeout=timeout,
+                 size=world_size,
+                 tolerance=tolerance,
+                 max_target_dist=max_target_dist,
+                 max_targets=max_targets,
+                 switch_flag_on_collision=switch_flag_on_collision,
+                 use_sensor=use_sensor,
+                 debug=False).unwrapped
+
     e.mpi_common_rand = np.random.RandomState()
+    AntGatherBulletEnv.ant_env_rew_weight = 1
+    AntGatherBulletEnv.path_rew_weight = 0
+    AntGatherBulletEnv.dist_rew_weight = 0
 
     e.render('human')
     e.reset()
-    steps = 1000
     if args.record:
         e.scene._p.startStateLogging(e.scene._p.STATE_LOGGING_VIDEO_MP4, '~/Documents/es/testvid.mp4')
 
