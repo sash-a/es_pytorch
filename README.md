@@ -1,3 +1,5 @@
+## *Depreciated in faviour of my [much faster implementation in Julia](https://github.com/sash-a/ScalableES.jl/)*
+
 # Evolutionary strategies (deep neuroevolution) in pytorch using MPI
 
 This implementation was made to be as simple and efficient as possible.  
